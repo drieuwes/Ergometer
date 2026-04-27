@@ -1,0 +1,2251 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#07111c" />
+<title>Erg Dashboard — Concept2 PM5</title>
+<style>
+  :root {
+    --bg-0: #07111c;
+    --bg-1: #0d1a2b;
+    --bg-2: #132338;
+    --bg-3: #1a2e49;
+    --line: #223b5c;
+    --text: #e6f1ff;
+    --muted: #8fa7c4;
+    --accent: #00e1ff;
+    --accent-2: #00ffa3;
+    --warn: #ffb347;
+    --danger: #ff5571;
+    --good: #7cffcb;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: radial-gradient(1200px 800px at 80% -10%, #143b5c 0%, var(--bg-0) 55%) fixed;
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Topbar ---------- */
+  header.topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px;
+    background: linear-gradient(180deg, rgba(7,17,28,0.9), rgba(7,17,28,0.4));
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(8px);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; letter-spacing: 0.5px;
+  }
+  .brand-logo {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 120deg, var(--accent), var(--accent-2), var(--accent));
+    display: grid; place-items: center; color: #001421; font-weight: 900;
+    box-shadow: 0 0 20px rgba(0,225,255,0.35);
+  }
+  .brand small { color: var(--muted); font-weight: 400; letter-spacing: 0.3px; }
+  nav.tabs { display: flex; gap: 4px; background: var(--bg-2); padding: 4px; border-radius: 999px; border: 1px solid var(--line); }
+  nav.tabs button {
+    all: unset; cursor: pointer;
+    padding: 8px 16px; border-radius: 999px;
+    color: var(--muted); font-weight: 600; font-size: 14px;
+    transition: all 160ms ease;
+  }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button.active { color: #001421; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 18px rgba(0,225,255,0.35); }
+
+  .connection {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+  .dot.on { background: var(--good); box-shadow: 0 0 14px var(--good); animation: pulse 1.6s infinite; }
+  .dot.sim { background: var(--warn); box-shadow: 0 0 10px var(--warn); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+  button.btn {
+    all: unset; cursor: pointer;
+    padding: 9px 14px; border-radius: 10px;
+    background: var(--bg-3); border: 1px solid var(--line);
+    color: var(--text); font-weight: 600; font-size: 13px;
+    transition: all 160ms ease;
+  }
+  button.btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #001421; border: 0; }
+  button.btn.primary:hover { filter: brightness(1.1); color: #001421; }
+  button.btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+  button.btn.warn { background: transparent; border-color: var(--warn); color: var(--warn); }
+  button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ---------- Layout ---------- */
+  main { padding: 22px; max-width: 1400px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; animation: fadeIn 240ms ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .grid { display: grid; gap: 18px; }
+  .card {
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  }
+  .card h3 { margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+  .card .subtitle { font-size: 12px; color: var(--muted); }
+
+  /* ---------- Live view ---------- */
+  .live-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  .big-stat {
+    position: relative;
+    min-height: 220px;
+    display: flex; flex-direction: column; justify-content: center;
+    overflow: hidden;
+  }
+  .big-stat .label { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
+  .big-stat .value {
+    font-family: var(--mono);
+    font-size: clamp(72px, 11vw, 150px);
+    font-weight: 800;
+    line-height: 1;
+    margin-top: 6px;
+    background: linear-gradient(180deg, var(--text) 20%, var(--accent) 90%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    letter-spacing: -2px;
+  }
+  .big-stat .unit { color: var(--muted); font-size: 18px; margin-top: 8px; font-weight: 500; }
+  .big-stat.pace .value { background: linear-gradient(180deg, var(--text) 20%, var(--accent-2) 90%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .big-stat::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(600px 200px at 120% -20%, rgba(0,225,255,0.1), transparent 60%);
+    pointer-events: none;
+  }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat {
+    text-align: center;
+    padding: 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+  .stat .n { font-family: var(--mono); font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+
+  .interval-card { grid-column: span 2; }
+  .progress {
+    position: relative;
+    height: 28px;
+    background: var(--bg-3); border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .progress .fill {
+    position: absolute; inset: 0 auto 0 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 0%; transition: width 200ms linear;
+    box-shadow: 0 0 16px rgba(0,225,255,0.4);
+  }
+  .progress .ticks { position: absolute; inset: 0; display: flex; pointer-events: none; }
+  .progress .tick { flex: 1; border-right: 1px dashed rgba(255,255,255,0.12); }
+  .progress .tick:last-child { border: 0; }
+  .progress .txt { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 13px; color: #001421; mix-blend-mode: screen; text-shadow: 0 0 4px rgba(255,255,255,0.6); }
+
+  .interval-steps {
+    display: flex; gap: 6px; margin-top: 14px; overflow-x: auto; padding-bottom: 4px;
+  }
+  .step-chip {
+    flex: 0 0 auto;
+    padding: 7px 12px; border-radius: 999px;
+    background: var(--bg-3); border: 1px solid var(--line);
+    font-size: 12px; color: var(--muted);
+    font-family: var(--mono); white-space: nowrap;
+  }
+  .step-chip.done { background: var(--bg-2); color: var(--muted); opacity: 0.55; text-decoration: line-through; }
+  .step-chip.current { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #001421; border-color: transparent; font-weight: 700; box-shadow: 0 0 16px rgba(0,225,255,0.35); }
+  .step-chip.rest { border-style: dashed; }
+
+  /* Next-up label + step counter */
+  .next-up-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-top: 10px; flex-wrap: wrap;
+  }
+  .next-up {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,179,71,0.18), rgba(255,179,71,0.04));
+    border: 1px solid rgba(255,179,71,0.5);
+    color: var(--warn);
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.4px;
+    box-shadow: 0 0 14px rgba(255,179,71,0.15);
+  }
+  .next-up .arrow { color: var(--text); opacity: 0.55; }
+  .next-up.last {
+    color: var(--good); border-color: rgba(124,255,203,0.5);
+    background: linear-gradient(90deg, rgba(124,255,203,0.18), rgba(124,255,203,0.04));
+    box-shadow: 0 0 14px rgba(124,255,203,0.15);
+  }
+  .next-up.work { color: var(--accent-2); border-color: rgba(0,255,163,0.5);
+    background: linear-gradient(90deg, rgba(0,255,163,0.18), rgba(0,255,163,0.04));
+    box-shadow: 0 0 14px rgba(0,255,163,0.15);
+  }
+  .step-counter {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  .step-counter strong { color: var(--text); font-weight: 700; }
+
+  /* Timeline canvas */
+  .iv-timeline {
+    display: block; width: 100%; height: 38px;
+    margin-top: 10px;
+    border-radius: 8px;
+    background: var(--bg-0);
+    border: 1px solid var(--line);
+  }
+
+  .coach-card { grid-column: span 2; }
+  .coach {
+    display: flex; align-items: center; gap: 18px;
+    padding: 20px; min-height: 100px;
+    background: linear-gradient(135deg, rgba(0,225,255,0.08), rgba(0,255,163,0.05));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    position: relative; overflow: hidden;
+  }
+  .coach .avatar {
+    flex: 0 0 auto;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 26px;
+  }
+  .coach .msg {
+    font-size: 20px; font-weight: 600; line-height: 1.35;
+  }
+  .coach .sub { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1.4px; }
+
+  /* ---------- Stroke indicator ---------- */
+  .stroke-viz { grid-column: span 2; display: flex; align-items: center; gap: 20px; }
+  .boat {
+    flex: 0 0 auto; width: 64px; height: 64px; border-radius: 50%;
+    background: var(--bg-3); border: 1px solid var(--line);
+    display: grid; place-items: center;
+    transition: transform 200ms ease, background 200ms ease;
+  }
+  .boat.drive { transform: scale(1.1); background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; box-shadow: 0 0 28px rgba(0,225,255,0.45); }
+  .stroke-bars { flex: 1; display: flex; gap: 3px; align-items: flex-end; height: 64px; }
+  .stroke-bars .b {
+    flex: 1; background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    border-radius: 3px 3px 0 0;
+    min-height: 4px; transition: height 100ms linear;
+    opacity: 0.7;
+  }
+
+  /* ---------- Interval builder ---------- */
+  .builder-grid { grid-template-columns: 1.2fr 1fr; gap: 18px; }
+  @media (max-width: 1000px) { .builder-grid { grid-template-columns: 1fr; } .live-grid { grid-template-columns: 1fr; } .interval-card, .coach-card, .stroke-viz { grid-column: auto; } }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  input, select, textarea {
+    background: var(--bg-0); border: 1px solid var(--line); color: var(--text);
+    padding: 10px 12px; border-radius: 10px; font-family: var(--sans); font-size: 14px;
+    outline: none; transition: border-color 160ms;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+  .workout-list { display: flex; flex-direction: column; gap: 8px; }
+  .workout-step {
+    display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 10px; align-items: center;
+    padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .workout-step.rest { border-style: dashed; opacity: 0.9; }
+  .workout-step .idx { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-3); font-size: 12px; font-family: var(--mono); color: var(--muted); }
+  .workout-step.rest .idx { background: transparent; border: 1px dashed var(--muted); color: var(--warn); }
+  .workout-step .desc { font-weight: 600; }
+  .workout-step .desc small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 2px; }
+  .workout-step .t { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .icon-btn { all: unset; cursor: pointer; color: var(--muted); width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; }
+  .icon-btn:hover { color: var(--text); background: var(--bg-3); }
+
+  .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+  .preset {
+    cursor: pointer;
+    padding: 14px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line);
+    transition: all 160ms ease;
+  }
+  .preset:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .preset h4 { margin: 0 0 4px 0; font-size: 15px; }
+  .preset p { margin: 0; color: var(--muted); font-size: 12px; }
+  .preset .tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 999px; background: var(--bg-3); color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; }
+  .preset .tag.easy { color: var(--good); }
+  .preset .tag.hard { color: var(--warn); }
+  .preset .tag.brutal { color: var(--danger); }
+
+  .summary {
+    margin-top: 14px; padding: 14px;
+    background: var(--bg-0); border: 1px solid var(--line); border-radius: 12px;
+    display: flex; gap: 22px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 14px;
+  }
+  .summary span strong { color: var(--accent); }
+
+  /* ---------- History ---------- */
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .history-item {
+    display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px; align-items: center;
+    padding: 14px 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .history-item .date { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .history-item .title { font-weight: 600; }
+  .history-item .title small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 2px; }
+  .history-item .metrics { font-family: var(--mono); font-size: 13px; color: var(--accent); text-align: right; }
+  .empty { text-align: center; padding: 40px; color: var(--muted); }
+
+  /* ---------- Toast ---------- */
+  .toast-wrap { position: fixed; top: 80px; right: 22px; z-index: 50; display: flex; flex-direction: column; gap: 10px; }
+  .toast {
+    padding: 12px 16px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    animation: slideIn 220ms ease; max-width: 360px;
+  }
+  .toast.good { border-color: var(--good); }
+  .toast.bad { border-color: var(--danger); }
+  .toast.warn { border-color: var(--warn); }
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0;} to { transform: none; opacity: 1;} }
+
+  /* ---------- Full-screen row mode ---------- */
+  body.fs main > *:not(.view.active) { display: none; }
+  body.fs header.topbar .brand small { display: none; }
+
+  .kbd { font-family: var(--mono); background: var(--bg-3); border: 1px solid var(--line); padding: 2px 6px; border-radius: 6px; font-size: 11px; color: var(--muted); }
+
+  /* tiny splash */
+  .hint { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .hint svg { flex: 0 0 auto; }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; place-items: center; z-index: 100;
+    backdrop-filter: blur(6px);
+    animation: fadeIn 180ms ease;
+  }
+  .modal-overlay.open { display: grid; }
+  .modal {
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border: 1px solid var(--line); border-radius: 18px;
+    padding: 26px; max-width: 480px; width: 92%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    animation: fadeIn 220ms ease;
+  }
+  .modal h3 { margin: 0 0 6px 0; font-size: 20px; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .modal p.sub { margin: 0 0 18px 0; color: var(--muted); font-size: 13px; }
+  .modal h4 { margin: 6px 0 10px 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; }
+  .warmup-options {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .warmup-opt {
+    padding: 12px 8px; border-radius: 10px;
+    background: var(--bg-0); border: 1px solid var(--line);
+    text-align: center; cursor: pointer; transition: all 160ms;
+    font-size: 13px; color: var(--text);
+  }
+  .warmup-opt:hover { border-color: var(--accent); }
+  .warmup-opt.sel {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #001421; border-color: transparent; font-weight: 700;
+    box-shadow: 0 0 16px rgba(0,225,255,0.3);
+  }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .modal .preset-preview {
+    background: var(--bg-0); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    max-height: 90px; overflow-y: auto;
+    margin-bottom: 14px;
+  }
+
+  .workout-step.warmup {
+    border-color: rgba(0,225,255,0.4);
+    background: linear-gradient(180deg, rgba(0,225,255,0.08), var(--bg-2));
+  }
+  .workout-step.warmup .idx { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+  .step-chip.warmup { border-color: rgba(0,225,255,0.5); color: var(--accent); }
+
+  /* responsive tweaks */
+  @media (max-width: 700px) {
+    header.topbar { flex-wrap: wrap; gap: 10px; }
+    .stat-row { grid-template-columns: repeat(2, 1fr); }
+    main { padding: 14px; }
+  }
+
+  /* =============================================================
+     ROEI-MODUS — geoptimaliseerd voor iPhone 12 landscape (844×390)
+     Ook bruikbaar op andere telefoons in landscape.
+     Wordt automatisch geactiveerd via JS + matchMedia, en via body.row-mode.
+     ============================================================= */
+  body.row-mode {
+    overflow: hidden;
+    height: 100vh; height: 100dvh;
+  }
+  body.row-mode header.topbar {
+    padding: 4px max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left));
+    padding-top: max(4px, env(safe-area-inset-top));
+    min-height: 40px;
+    gap: 8px;
+  }
+  body.row-mode header.topbar nav.tabs { display: none; }
+  body.row-mode header.topbar .brand small { display: none; }
+  body.row-mode header.topbar .brand > div:last-child > div:first-child { font-size: 12px; }
+  body.row-mode header.topbar .brand-logo { width: 26px; height: 26px; border-radius: 7px; font-size: 13px; }
+  body.row-mode header.topbar #conn-txt { display: none; }
+  body.row-mode header.topbar #fs-btn { display: none; }
+  body.row-mode header.topbar .btn { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+
+  body.row-mode main {
+    padding: 6px max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    max-width: none;
+    height: calc(100dvh - 48px);
+    overflow: hidden;
+  }
+  body.row-mode #view-intervallen,
+  body.row-mode #view-historie { display: none !important; }
+  body.row-mode #view-live { display: block !important; height: 100%; }
+
+  body.row-mode .live-grid {
+    grid-template-columns: 1fr 1fr 1.35fr !important;
+    grid-template-rows: 1fr auto !important;
+    gap: 6px !important;
+    height: 100%;
+  }
+  body.row-mode .card {
+    padding: 8px 12px;
+    border-radius: 10px;
+    min-height: 0;
+    overflow: hidden;
+    box-shadow: none;
+  }
+  body.row-mode .card h3 { font-size: 9px; letter-spacing: 1.2px; margin: 0 0 4px 0; }
+
+  /* Pace — left column, full height */
+  body.row-mode .live-grid > .card:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  /* SPM — middle column, full height */
+  body.row-mode .live-grid > .card:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  body.row-mode .big-stat { min-height: 0; padding: 10px 14px; }
+  body.row-mode .big-stat .label { font-size: 9px; letter-spacing: 1.4px; margin-bottom: 2px; }
+  body.row-mode .big-stat .value {
+    font-size: clamp(64px, 18vh, 120px);
+    line-height: 0.88; margin-top: 0;
+    letter-spacing: -3px;
+  }
+  body.row-mode .big-stat .unit { display: none; }
+
+  /* Interval card — right column top */
+  body.row-mode .live-grid > .card:nth-child(3) {
+    grid-column: 3; grid-row: 1;
+    padding: 8px 12px;
+  }
+  body.row-mode .progress { height: 22px; border-radius: 11px; }
+  body.row-mode .progress .txt { font-size: 11px; }
+  body.row-mode .interval-steps { display: none; } /* gebruik timeline ipv chips */
+  body.row-mode .next-up-row { margin-top: 6px; }
+  body.row-mode .next-up { font-size: 13px; padding: 5px 11px; }
+  body.row-mode .step-counter { font-size: 11px; }
+  body.row-mode .iv-timeline { height: 30px; margin-top: 6px; }
+
+  /* Coach — right column middle, compact */
+  body.row-mode .live-grid > .card:nth-child(4) {
+    grid-column: 3; grid-row: 2;
+    padding: 6px 10px;
+  }
+  body.row-mode .live-grid > .card:nth-child(4) h3 { display: none; }
+  body.row-mode .coach { padding: 6px 10px; min-height: 0; gap: 10px; border: 0; background: transparent; }
+  body.row-mode .coach .avatar { width: 32px; height: 32px; font-size: 16px; }
+  body.row-mode .coach .msg { font-size: 13px; line-height: 1.25; }
+  body.row-mode .coach .sub { display: none; }
+
+  /* Stroke viz — hidden */
+  body.row-mode .live-grid > .card:nth-child(5) { display: none; }
+
+  /* Live metrics — bottom strip under the two big stats */
+  body.row-mode .live-grid > .card:nth-child(6) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    padding: 4px 8px;
+  }
+  body.row-mode .live-grid > .card:nth-child(6) h3 { display: none; }
+  body.row-mode .live-grid > .card:nth-child(6) .stat-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+  body.row-mode .stat { padding: 4px 6px; border-radius: 8px; }
+  body.row-mode .stat .n { font-size: 16px; }
+  body.row-mode .stat .l { font-size: 8px; letter-spacing: 1px; margin-top: 1px; }
+
+  /* Split avg — hidden in row mode */
+  body.row-mode .live-grid > .card:nth-child(7) { display: none; }
+
+  /* Toast in row-mode: smaller */
+  body.row-mode .toast-wrap { top: 46px; right: 8px; }
+  body.row-mode .toast { padding: 8px 12px; font-size: 12px; max-width: 280px; }
+
+  /* Row-mode button visual state */
+  #rowmode-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #001421; border: 0; }
+
+  /* Portrait on phone with aspect ratio — keep normal but compact */
+  @media (orientation: portrait) and (max-width: 500px) {
+    .big-stat .value { font-size: clamp(64px, 18vw, 120px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo">⏱</div>
+    <div>
+      <div>Erg Dashboard</div>
+      <small>Concept2 PM5 · live</small>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-view="live">Live</button>
+    <button class="tab-btn" data-view="intervallen">Intervallen</button>
+    <button class="tab-btn" data-view="historie">Historie</button>
+  </nav>
+  <div class="connection">
+    <span class="dot" id="conn-dot"></span>
+    <span id="conn-txt" style="font-size:13px;color:var(--muted)">Niet verbonden</span>
+    <button class="btn primary" id="connect-btn">Koppel PM5</button>
+    <button class="btn" id="sim-btn" title="Demo met gesimuleerde data">Demo</button>
+    <button class="btn" id="rowmode-btn" title="Roei-modus: geoptimaliseerd voor telefoon in landscape">📱</button>
+    <button class="btn" id="fs-btn" title="Volledig scherm">⛶</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= LIVE VIEW ================= -->
+  <section class="view active" id="view-live">
+    <div class="grid live-grid">
+
+      <div class="card big-stat pace">
+        <div class="label">Tempo / 500m</div>
+        <div class="value" id="live-pace">—:—</div>
+        <div class="unit">min:sec per 500 meter</div>
+      </div>
+
+      <div class="card big-stat">
+        <div class="label">Halen / min</div>
+        <div class="value" id="live-spm">—</div>
+        <div class="unit">strokes per minute</div>
+      </div>
+
+      <div class="card interval-card">
+        <h3>Interval voortgang</h3>
+        <div class="progress">
+          <div class="fill" id="iv-fill"></div>
+          <div class="ticks" id="iv-ticks"></div>
+          <div class="txt" id="iv-txt">Geen training actief</div>
+        </div>
+        <div class="next-up-row" id="iv-nextrow" style="display:none">
+          <div class="next-up" id="iv-next"></div>
+          <div class="step-counter" id="iv-counter"></div>
+        </div>
+        <canvas class="iv-timeline" id="iv-timeline"></canvas>
+        <div class="interval-steps" id="iv-steps"></div>
+      </div>
+
+      <div class="card coach-card">
+        <div class="coach">
+          <div class="avatar" id="coach-emoji">🚣</div>
+          <div>
+            <div class="sub" id="coach-sub">COACH</div>
+            <div class="msg" id="coach-msg">Klaar om los te trekken? Druk op <span class="kbd">Koppel PM5</span> of <span class="kbd">Demo</span>.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card stroke-viz">
+        <div class="boat" id="boat">🛶</div>
+        <div class="stroke-bars" id="bars"></div>
+        <div style="font-family:var(--mono); font-size:13px; color:var(--muted); min-width:120px; text-align:right">
+          <div>Laatste haal</div>
+          <div id="stroke-last" style="color:var(--text); font-size:18px;">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Live metrics</h3>
+        <div class="stat-row">
+          <div class="stat"><div class="n" id="m-time">0:00</div><div class="l">Tijd</div></div>
+          <div class="stat"><div class="n" id="m-dist">0 m</div><div class="l">Afstand</div></div>
+          <div class="stat"><div class="n" id="m-power">0 W</div><div class="l">Vermogen</div></div>
+          <div class="stat"><div class="n" id="m-cal">0 kcal</div><div class="l">Calorieën</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Split / gemiddelden</h3>
+        <div class="stat-row">
+          <div class="stat"><div class="n" id="m-apace">—:—</div><div class="l">Ø Tempo</div></div>
+          <div class="stat"><div class="n" id="m-aspm">—</div><div class="l">Ø SPM</div></div>
+          <div class="stat"><div class="n" id="m-apwr">—</div><div class="l">Ø Watt</div></div>
+          <div class="stat"><div class="n" id="m-drag">—</div><div class="l">Drag</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= INTERVAL BUILDER VIEW ================= -->
+  <section class="view" id="view-intervallen">
+    <div class="grid builder-grid">
+
+      <div class="card">
+        <h3>Intervaltraining bouwen</h3>
+        <p class="subtitle">Stel je eigen workout samen. Druk op <b>Stuur naar PM5</b> om de training op je roeimachine te programmeren.</p>
+
+        <div style="margin-top:12px">
+          <label class="field">Naam training
+            <input id="wo-name" placeholder="Bijv. Koude dinsdagochtend" />
+          </label>
+        </div>
+
+        <h4 style="margin:18px 0 8px 0; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px">Stappen</h4>
+        <div class="workout-list" id="wo-list"></div>
+
+        <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+          <button class="btn" id="add-warmup" style="border-color:rgba(0,225,255,0.4);color:var(--accent)">+ Warming-up</button>
+          <button class="btn" id="add-work">+ Werkinterval</button>
+          <button class="btn warn" id="add-rest">+ Rust</button>
+          <button class="btn" id="add-2k">+ 2000m test</button>
+          <button class="btn" id="clear-wo">Wissen</button>
+        </div>
+
+        <div class="summary" id="wo-summary"></div>
+
+        <canvas id="wo-preview" style="width:100%; border-radius:10px; border:1px solid var(--line); margin-top:12px; display:block; background:#07111c"></canvas>
+
+        <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+          <button class="btn primary" id="start-wo">▶ Start training</button>
+          <button class="btn" id="save-preset">💾 Opslaan als preset</button>
+          <button class="btn" id="send-pm5">📡 Stuur naar PM5</button>
+        </div>
+        <div class="hint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          PM5 programmering werkt alleen bij echte BLE-koppeling. In demo modus draait de training in het dashboard zelf.
+        </div>
+        <div class="hint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2L12 12"/></svg>
+          Web Bluetooth werkt in Chrome/Edge op desktop en Android. Open dit bestand lokaal of host het op HTTPS (localhost werkt ook).
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Trainings­suggesties</h3>
+        <p class="subtitle">Klik om te laden. Pas daarna aan naar smaak.</p>
+        <div class="preset-grid" id="preset-grid"></div>
+
+        <h3 style="margin-top:22px">Opgeslagen presets</h3>
+        <div class="preset-grid" id="user-presets"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= HISTORY VIEW ================= -->
+  <section class="view" id="view-historie">
+    <div class="card">
+      <h3>Trainings­historie</h3>
+      <p class="subtitle">Opgeslagen sessies. Exporteer als <b>.tcx</b> (Strava / Suunto / Garmin) of <b>.fit</b>.</p>
+      <div class="history-list" id="history-list"></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>Ontwikkeling over tijd</h3>
+      <canvas id="hist-chart" height="180"></canvas>
+    </div>
+  </section>
+
+</main>
+
+<!-- ================= SHARE MODAL ================= -->
+<div class="modal-overlay" id="share-modal">
+  <div class="modal" style="max-width:680px">
+    <h3 id="sm-name">Sessie delen</h3>
+    <p class="sub" id="sm-desc"></p>
+    <canvas id="sm-canvas" style="width:100%; border-radius:12px; border:1px solid var(--line); display:block; margin-bottom:16px; background:#07111c"></canvas>
+    <h4>Direct delen</h4>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+      <button class="btn" style="background:#fc4c02; color:white; border:0; padding:12px; font-weight:700" id="sm-strava">
+        ▲ Deel met Strava
+      </button>
+      <button class="btn" style="background:#00aaff; color:white; border:0; padding:12px; font-weight:700" id="sm-suunto">
+        ● Deel met Suunto
+      </button>
+    </div>
+    <h4 style="margin-top:18px">Losse downloads</h4>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn" id="sm-png">🖼 Afbeelding (PNG)</button>
+      <button class="btn" id="sm-tcx">📄 TCX</button>
+      <button class="btn" id="sm-fit">📄 FIT</button>
+      <button class="btn" id="sm-json">📄 JSON</button>
+    </div>
+    <div class="hint" style="margin-top:12px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      Op telefoon (iOS/Android) opent de native deelknop direct de Strava- of Suunto-app. Op desktop worden het TCX en de afbeelding gedownload en opent het Strava upload-venster.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="sm-close">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PRESET MODAL ================= -->
+<div class="modal-overlay" id="preset-modal">
+  <div class="modal">
+    <h3 id="pm-name">Preset</h3>
+    <p class="sub" id="pm-desc"></p>
+    <div class="preset-preview" id="pm-preview"></div>
+    <h4>Warming-up toevoegen?</h4>
+    <div class="warmup-options" id="pm-warmup">
+      <div class="warmup-opt" data-wu="0">Geen</div>
+      <div class="warmup-opt" data-wu="180">3 min</div>
+      <div class="warmup-opt sel" data-wu="300">5 min</div>
+      <div class="warmup-opt" data-wu="600">10 min</div>
+      <div class="warmup-opt" data-wu="900">15 min</div>
+      <div class="warmup-opt" data-wu="custom">Aangepast</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="pm-cancel">Annuleer</button>
+      <button class="btn primary" id="pm-load">Laad training</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =============================================================
+   CONCEPT2 PM5 — Erg Dashboard
+   Single-file HTML app. Werkt offline.
+   Persistentie via localStorage.
+   ============================================================= */
+
+/* -------- UUIDs Concept2 PM5 (spec v2.3) -------- */
+const C2 = {
+  SERVICE_ROWING: 'ce060030-43e5-11e4-916c-0800200c9a66',
+  CHAR_GENERAL_STATUS:   'ce060031-43e5-11e4-916c-0800200c9a66',
+  CHAR_ADD_STATUS_1:     'ce060032-43e5-11e4-916c-0800200c9a66',
+  CHAR_ADD_STATUS_2:     'ce060033-43e5-11e4-916c-0800200c9a66',
+  CHAR_STROKE_DATA:      'ce060035-43e5-11e4-916c-0800200c9a66',
+  CHAR_SPLIT_DATA:       'ce060037-43e5-11e4-916c-0800200c9a66',
+  CHAR_END_OF_WORKOUT:   'ce060039-43e5-11e4-916c-0800200c9a66',
+
+  SERVICE_CONTROL: 'ce060020-43e5-11e4-916c-0800200c9a66',
+  CHAR_CSAFE_TX:   'ce060021-43e5-11e4-916c-0800200c9a66',
+
+  SERVICE_DISCOVERY:  'ce060000-43e5-11e4-916c-0800200c9a66',
+  SERVICE_INFORMATION:'ce060010-43e5-11e4-916c-0800200c9a66',
+};
+
+/* -------- State -------- */
+const state = {
+  connected: false,
+  mode: null, // 'ble' | 'sim' | null
+  device: null,
+  server: null,
+  live: {
+    time: 0, distance: 0, spm: 0, pace: 0, power: 0, calories: 0,
+    avgPace: 0, avgSpm: 0, avgPower: 0, drag: 0, hr: 0,
+  },
+  session: null,       // current session samples
+  workout: [],         // current builder workout steps
+  active: null,        // active workout runtime
+  strokes: [],         // ring buffer of last stroke power values for bars
+  lastStrokeTs: 0,
+  simTimer: null,
+  sampleTimer: null,
+  history: [],         // saved sessions
+  userPresets: [],
+};
+
+/* -------- Local storage -------- */
+const LS_HISTORY = 'erg_history_v1';
+const LS_PRESETS = 'erg_presets_v1';
+const LS_WORKOUT = 'erg_last_workout_v1';
+
+function saveLS() {
+  try {
+    localStorage.setItem(LS_HISTORY, JSON.stringify(state.history));
+    localStorage.setItem(LS_PRESETS, JSON.stringify(state.userPresets));
+    localStorage.setItem(LS_WORKOUT, JSON.stringify(state.workout));
+  } catch(e) { /* private mode, ignore */ }
+}
+function loadLS() {
+  try {
+    state.history = JSON.parse(localStorage.getItem(LS_HISTORY) || '[]');
+    state.userPresets = JSON.parse(localStorage.getItem(LS_PRESETS) || '[]');
+    state.workout = JSON.parse(localStorage.getItem(LS_WORKOUT) || '[]');
+  } catch(e) {
+    state.history = []; state.userPresets = []; state.workout = [];
+  }
+}
+
+/* -------- Tabs -------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    if (btn.dataset.view === 'historie') renderHistory();
+    if (btn.dataset.view === 'intervallen') renderWorkout();
+  });
+});
+
+/* -------- Toasts -------- */
+function toast(msg, kind='') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(20px)'; }, 3200);
+  setTimeout(() => el.remove(), 3700);
+}
+
+/* -------- Formatting -------- */
+function fmtPace(sec) {
+  if (!sec || !isFinite(sec) || sec <= 0) return '—:—';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toFixed(1).padStart(4,'0')}`;
+}
+function fmtTime(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec/3600), m = Math.floor(sec/60)%60, s = sec%60;
+  return h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+}
+function fmtDist(m) {
+  if (m >= 1000) return (m/1000).toFixed(2) + ' km';
+  return Math.round(m) + ' m';
+}
+
+/* -------- Humor / coach -------- */
+const COACH_MESSAGES = {
+  start: [
+    { e: '🚣', m: 'Voeten erin, zitvlees op de bank. Laten we lijden.' },
+    { e: '🔥', m: 'Daar gaan we. Je toekomstige zelf kijkt toe.' },
+    { e: '☕', m: 'Koffie is op. Alleen jij en het vliegwiel nog.' },
+  ],
+  pushing: [
+    { e: '💪', m: 'Trekken alsof je niet betaald wordt.' },
+    { e: '🎯', m: 'Je tempo is prima. Voor een nijlpaard.' },
+    { e: '⚡', m: 'Benen drukken. Rug is gewoon een passagier.' },
+    { e: '🤖', m: 'Minder denken, meer halen. Dit is geen TED talk.' },
+    { e: '🧘', m: 'Ademen is optioneel maar wel aanbevolen.' },
+  ],
+  halfway: [
+    { e: '🏁', m: 'Halverwege. Erger dan dit wordt het niet. Waarschijnlijk.' },
+    { e: '🎢', m: 'Halverwege. Terug kan niet meer, voorwaarts is het enige pad.' },
+  ],
+  rest: [
+    { e: '🫖', m: 'Rust. Ademhalen, niet flauwvallen.' },
+    { e: '🧊', m: 'Rust. Maak je zorgen over het volgende interval, niet over dit.' },
+    { e: '🎈', m: 'Adem in. Adem uit. Herhaal tot het piept.' },
+  ],
+  warmup: [
+    { e: '🔥', m: 'Warming-up. Lekker los, spieren wakker schudden.' },
+    { e: '🌡', m: 'Rustig inroeien. Bewaar het vuur voor straks.' },
+    { e: '🧘', m: 'Techniek check: benen, rug, armen. En dan terug.' },
+    { e: '☀️', m: 'Nog lang niet begonnen. Gewoon opwarmen.' },
+  ],
+  intervalNext: [
+    { e: '🏃', m: 'Volgende interval komt eraan. Herschik je gedachten.' },
+    { e: '🌪', m: 'Nog één keer alles eruit. Daarna is alles kalm.' },
+  ],
+  lastPush: [
+    { e: '🚀', m: 'Nog 500m. Denk aan de appeltaart.' },
+    { e: '💎', m: 'Laatste minuut. Dit is het verschil tussen rower en TV-kijker.' },
+    { e: '🪖', m: 'Dit is het stukje waar mensen kwijt raken. Niet vandaag.' },
+  ],
+  done: [
+    { e: '🏆', m: 'Klaar. Je bent één training dichter bij iemand waar je trots op kunt zijn.' },
+    { e: '🍩', m: 'Klaar. Ga nu iets eten wat je niet verdient, maar wel hebt.' },
+    { e: '🛀', m: 'Klaar. De douche is je beloning. De spierpijn morgen ook.' },
+  ],
+  slacking: [
+    { e: '🐢', m: 'Je SPM is slaperig. Wakker worden.' },
+    { e: '💤', m: 'Tempo zakt in. Meer benen, minder existentiële crisis.' },
+  ],
+  pr: [
+    { e: '🎉', m: 'Kijk jou! Tempo op niveau. Blijf daar.' },
+    { e: '👑', m: 'Dit is het tempo van iemand die wint.' },
+  ],
+  idle: [
+    { e: '🚣', m: 'Klaar om los te trekken? Druk op Koppel PM5 of Demo.' }
+  ],
+};
+let coachCooldown = 0;
+function coach(bucket='pushing', sticky=false) {
+  if (!sticky && Date.now() < coachCooldown) return;
+  const list = COACH_MESSAGES[bucket] || COACH_MESSAGES.pushing;
+  const pick = list[Math.floor(Math.random() * list.length)];
+  document.getElementById('coach-emoji').textContent = pick.e;
+  document.getElementById('coach-msg').textContent = pick.m;
+  document.getElementById('coach-sub').textContent = bucket.toUpperCase();
+  coachCooldown = Date.now() + (sticky ? 12000 : 9000);
+}
+
+/* -------- Live UI render -------- */
+function renderLive() {
+  const L = state.live;
+  document.getElementById('live-pace').textContent = fmtPace(L.pace);
+  document.getElementById('live-spm').textContent = L.spm > 0 ? Math.round(L.spm) : '—';
+  document.getElementById('m-time').textContent = fmtTime(L.time);
+  document.getElementById('m-dist').textContent = fmtDist(L.distance);
+  document.getElementById('m-power').textContent = Math.round(L.power) + ' W';
+  document.getElementById('m-cal').textContent = Math.round(L.calories) + ' kcal';
+  document.getElementById('m-apace').textContent = fmtPace(L.avgPace);
+  document.getElementById('m-aspm').textContent = L.avgSpm ? Math.round(L.avgSpm) : '—';
+  document.getElementById('m-apwr').textContent = L.avgPower ? Math.round(L.avgPower) + ' W' : '—';
+  document.getElementById('m-drag').textContent = L.drag ? Math.round(L.drag) : '—';
+  renderBars();
+  renderActiveWorkout();
+}
+
+function renderBars() {
+  const wrap = document.getElementById('bars');
+  if (!wrap.children.length) {
+    for (let i = 0; i < 30; i++) {
+      const d = document.createElement('div');
+      d.className = 'b'; d.style.height = '4px';
+      wrap.appendChild(d);
+    }
+  }
+  const bars = wrap.children;
+  const data = state.strokes.slice(-30);
+  for (let i = 0; i < bars.length; i++) {
+    const v = data[i] || 0;
+    const h = Math.max(4, Math.min(64, v * 0.2));
+    bars[i].style.height = h + 'px';
+  }
+}
+
+/* -------- Stroke pulse -------- */
+function registerStroke(power) {
+  const now = Date.now();
+  if (state.lastStrokeTs && now - state.lastStrokeTs < 300) return;
+  state.lastStrokeTs = now;
+  state.strokes.push(power || 100);
+  if (state.strokes.length > 120) state.strokes.shift();
+  const boat = document.getElementById('boat');
+  boat.classList.add('drive');
+  setTimeout(() => boat.classList.remove('drive'), 200);
+  document.getElementById('stroke-last').textContent = Math.round(power || 0) + ' W';
+}
+
+/* =============================================================
+   WORKOUT BUILDER
+   ============================================================= */
+const DEFAULT_PRESETS = [
+  { name: '4x 500m (R:1:30)', desc: 'Klassieker. Trekken tot je ogen suizen.', tag: 'hard',
+    steps: [
+      { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
+      { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
+      { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
+      { type:'work', unit:'m', value:500 },
+    ]},
+  { name: '5x 1000m (R:3:00)', desc: 'Uithoudings­basis. Tempo gelijk houden.', tag: 'hard',
+    steps: [
+      { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:180 },
+      { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:180 },
+      { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:180 },
+      { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:180 },
+      { type:'work', unit:'m', value:1000 },
+    ]},
+  { name: 'Pyramide 250→1000→250', desc: 'Oplopend, piek op 1000m.', tag: 'hard',
+    steps: [
+      { type:'work', unit:'m', value:250 }, { type:'rest', unit:'s', value:60 },
+      { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
+      { type:'work', unit:'m', value:750 }, { type:'rest', unit:'s', value:120 },
+      { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:120 },
+      { type:'work', unit:'m', value:750 }, { type:'rest', unit:'s', value:90 },
+      { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:60 },
+      { type:'work', unit:'m', value:250 },
+    ]},
+  { name: '8x 500m (R:2:00)', desc: 'Snelheid en mentale stoerheid.', tag: 'brutal',
+    steps: Array.from({length: 15}, (_, i) => i % 2 === 0
+      ? { type:'work', unit:'m', value:500 }
+      : { type:'rest', unit:'s', value:120 })
+  },
+  { name: 'Tabata 20/10 x 16', desc: 'Korte pijn, veel van.', tag: 'brutal',
+    steps: Array.from({length: 31}, (_, i) => i % 2 === 0
+      ? { type:'work', unit:'s', value:20 }
+      : { type:'rest', unit:'s', value:10 })
+  },
+  { name: '30 min steady state', desc: 'Rustig tempo, gesprek mogelijk (nauwelijks).', tag: 'easy',
+    steps: [{ type:'work', unit:'s', value:1800 }]
+  },
+  { name: '2000m test', desc: 'Een examen op wielen. Je krijgt geen cijfer, wel een tijd.', tag: 'brutal',
+    steps: [{ type:'work', unit:'m', value:2000 }]
+  },
+  { name: '5000m tempo', desc: 'Klassiek afstand voor benchmark.', tag: 'hard',
+    steps: [{ type:'work', unit:'m', value:5000 }]
+  },
+  { name: 'Herstel 20 min', desc: 'Lichte trekjes, gewoon beweging.', tag: 'easy',
+    steps: [{ type:'work', unit:'s', value:1200 }]
+  },
+];
+
+function renderPresets() {
+  const wrap = document.getElementById('preset-grid');
+  wrap.innerHTML = '';
+  DEFAULT_PRESETS.forEach((p) => {
+    const el = document.createElement('div');
+    el.className = 'preset';
+    el.innerHTML = `<h4>${p.name}</h4><p>${p.desc}</p><span class="tag ${p.tag}">${p.tag === 'easy' ? 'rustig' : p.tag === 'hard' ? 'pittig' : 'slopend'}</span>`;
+    el.addEventListener('click', () => openPresetModal(p));
+    wrap.appendChild(el);
+  });
+
+  const upWrap = document.getElementById('user-presets');
+  upWrap.innerHTML = '';
+  if (!state.userPresets.length) {
+    upWrap.innerHTML = '<div class="subtitle" style="grid-column:1/-1">Nog geen opgeslagen presets.</div>';
+    return;
+  }
+  state.userPresets.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'preset';
+    el.innerHTML = `<h4>${p.name}</h4><p>${p.desc || (p.steps.length + ' stappen')}</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <span class="tag">eigen</span>
+        <button class="icon-btn" data-del="${i}" title="Verwijder">✕</button>
+      </div>`;
+    el.addEventListener('click', (e) => {
+      if (e.target.dataset.del) {
+        state.userPresets.splice(+e.target.dataset.del, 1);
+        saveLS(); renderPresets();
+        return;
+      }
+      openPresetModal(p);
+    });
+    upWrap.appendChild(el);
+  });
+}
+
+/* ---------- Preset modal with warm-up picker ---------- */
+let pendingPreset = null;
+let pendingWarmup = 300; // default 5 min
+
+function openPresetModal(preset) {
+  pendingPreset = preset;
+  document.getElementById('pm-name').textContent = preset.name;
+  document.getElementById('pm-desc').textContent = preset.desc || `${preset.steps.length} stappen`;
+
+  // preview of steps
+  const preview = preset.steps.map((s, i) => {
+    const val = s.unit === 'm' ? `${s.value}m` : fmtTime(s.value);
+    return `${i+1}. ${s.type === 'rest' ? 'rust ' : 'werk '}${val}`;
+  }).join('  ·  ');
+  document.getElementById('pm-preview').textContent = preview;
+
+  // reset selection to current default
+  document.querySelectorAll('#pm-warmup .warmup-opt').forEach(o => {
+    o.classList.toggle('sel', o.dataset.wu === String(pendingWarmup));
+  });
+  document.getElementById('preset-modal').classList.add('open');
+}
+
+function closePresetModal() {
+  document.getElementById('preset-modal').classList.remove('open');
+  pendingPreset = null;
+}
+
+document.getElementById('pm-cancel').addEventListener('click', closePresetModal);
+document.getElementById('preset-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'preset-modal') closePresetModal();
+});
+document.querySelectorAll('#pm-warmup .warmup-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    const wu = el.dataset.wu;
+    if (wu === 'custom') {
+      const v = prompt('Duur warming-up in minuten?', '7');
+      const mins = parseInt(v, 10);
+      if (!mins || mins <= 0) return;
+      pendingWarmup = mins * 60;
+      document.querySelectorAll('#pm-warmup .warmup-opt').forEach(o => o.classList.remove('sel'));
+      el.classList.add('sel');
+      el.textContent = `${mins} min`;
+    } else {
+      pendingWarmup = parseInt(wu, 10);
+      document.querySelectorAll('#pm-warmup .warmup-opt').forEach(o => o.classList.remove('sel'));
+      el.classList.add('sel');
+    }
+  });
+});
+/* Share modal handlers */
+document.getElementById('sm-close').addEventListener('click', closeShareModal);
+document.getElementById('share-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'share-modal') closeShareModal();
+});
+document.getElementById('sm-strava').addEventListener('click', () => { if (sharingSession) shareSession(sharingSession, 'strava'); });
+document.getElementById('sm-suunto').addEventListener('click', () => { if (sharingSession) shareSession(sharingSession, 'suunto'); });
+document.getElementById('sm-png').addEventListener('click', () => { if (sharingSession) downloadPNG(sharingSession); });
+document.getElementById('sm-tcx').addEventListener('click', () => { if (sharingSession) downloadTCX(sharingSession); });
+document.getElementById('sm-fit').addEventListener('click', () => { if (sharingSession) downloadFIT(sharingSession); });
+document.getElementById('sm-json').addEventListener('click', () => { if (sharingSession) downloadJSON(sharingSession); });
+
+document.getElementById('pm-load').addEventListener('click', () => {
+  if (!pendingPreset) return;
+  const steps = [];
+  if (pendingWarmup > 0) {
+    steps.push({ type: 'warmup', unit: 's', value: pendingWarmup });
+  }
+  steps.push(...JSON.parse(JSON.stringify(pendingPreset.steps)));
+  state.workout = steps;
+  document.getElementById('wo-name').value = pendingPreset.name;
+  saveLS(); renderWorkout();
+  toast(`Preset geladen: ${pendingPreset.name}${pendingWarmup ? ` · warm-up ${fmtTime(pendingWarmup)}` : ''}`, 'good');
+  closePresetModal();
+});
+
+function renderWorkout() {
+  const wrap = document.getElementById('wo-list');
+  wrap.innerHTML = '';
+  if (!state.workout.length) {
+    wrap.innerHTML = '<div class="subtitle">Nog geen stappen. Voeg een werkinterval toe of kies een preset.</div>';
+  }
+  state.workout.forEach((s, i) => {
+    const el = document.createElement('div');
+    const typeCls = s.type === 'rest' ? 'rest' : s.type === 'warmup' ? 'warmup' : '';
+    el.className = 'workout-step ' + typeCls;
+    const desc = s.type === 'rest' ? 'Rust' : s.type === 'warmup' ? 'Warming-up' : 'Werk';
+    const val = s.unit === 'm' ? `${s.value} m` : fmtTime(s.value);
+    el.innerHTML = `
+      <div class="idx">${i+1}</div>
+      <div class="desc">${desc}<small>${s.unit === 'm' ? 'afstand' : 'tijd'}</small></div>
+      <div class="t">${val}</div>
+      <button class="icon-btn" data-up="${i}" title="Omhoog">▲</button>
+      <button class="icon-btn" data-del="${i}" title="Verwijder">✕</button>
+    `;
+    wrap.appendChild(el);
+  });
+  wrap.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', e => {
+    const i = +e.target.dataset.up;
+    if (i > 0) {
+      const tmp = state.workout[i-1]; state.workout[i-1] = state.workout[i]; state.workout[i] = tmp;
+      saveLS(); renderWorkout();
+    }
+  }));
+  wrap.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
+    const i = +e.target.dataset.del;
+    state.workout.splice(i, 1);
+    saveLS(); renderWorkout();
+  }));
+
+  // summary
+  const sum = state.workout.reduce((a, s) => {
+    if (s.type === 'work') {
+      if (s.unit === 'm') a.m += s.value;
+      else a.t += s.value;
+    } else if (s.type === 'warmup') {
+      a.w += s.value;
+    } else {
+      a.r += s.value;
+    }
+    a.steps += 1;
+    return a;
+  }, { m: 0, t: 0, r: 0, w: 0, steps: 0 });
+  document.getElementById('wo-summary').innerHTML = `
+    <span><strong>${sum.steps}</strong> stappen</span>
+    ${sum.w ? `<span>Warm-up: <strong style="color:var(--accent)">${fmtTime(sum.w)}</strong></span>` : ''}
+    <span>Werk afstand: <strong>${sum.m || 0} m</strong></span>
+    <span>Werk tijd: <strong>${fmtTime(sum.t)}</strong></span>
+    <span>Rust: <strong>${fmtTime(sum.r)}</strong></span>
+  `;
+
+  // preview afbeelding van huidige build
+  const previewCanvas = document.getElementById('wo-preview');
+  if (previewCanvas && state.workout.length) {
+    const fakeSession = {
+      name: document.getElementById('wo-name').value || 'Geplande training',
+      started: new Date().toISOString(),
+      steps: state.workout,
+      totalDist: sum.m, totalTime: sum.t + sum.r + sum.w,
+      avgPace: 0, avgPower: 0,
+    };
+    renderIntervalImage(fakeSession, previewCanvas, { width: previewCanvas.clientWidth || 600, height: 220 });
+    previewCanvas.style.display = 'block';
+  } else if (previewCanvas) {
+    previewCanvas.style.display = 'none';
+  }
+}
+
+function addWarmupStep() {
+  const v = prompt('Warming-up — hoeveel minuten?', '5');
+  if (!v) return;
+  const mins = parseInt(v, 10);
+  if (!mins || mins <= 0) return toast('Vul een getal groter dan 0 in.', 'warn');
+  // Place at the start if not already there
+  const existing = state.workout.findIndex(s => s.type === 'warmup');
+  const step = { type: 'warmup', unit: 's', value: mins * 60 };
+  if (existing >= 0) state.workout[existing] = step;
+  else state.workout.unshift(step);
+  saveLS(); renderWorkout();
+  toast(`Warming-up ${fmtTime(mins * 60)} ingesteld.`, 'good');
+}
+
+function addWorkStep() {
+  const v = prompt('Werk interval — vul in:\n"500m" voor afstand, "2:00" voor tijd (mm:ss)', '500m');
+  if (!v) return;
+  const step = parseStepInput(v, 'work');
+  if (!step) return toast('Kan dit niet lezen. Probeer "500m" of "2:00".', 'warn');
+  state.workout.push(step); saveLS(); renderWorkout();
+}
+function addRestStep() {
+  const v = prompt('Rust — bv. "1:00" of "90s"', '1:30');
+  if (!v) return;
+  const step = parseStepInput(v, 'rest');
+  if (!step) return toast('Kan dit niet lezen.', 'warn');
+  state.workout.push(step); saveLS(); renderWorkout();
+}
+function parseStepInput(raw, type) {
+  raw = raw.trim().toLowerCase();
+  if (/^\d+\s*m$/.test(raw)) return { type, unit:'m', value: parseInt(raw) };
+  if (/^\d+\s*k(m)?$/.test(raw)) return { type, unit:'m', value: parseInt(raw) * 1000 };
+  if (/^\d+\s*s$/.test(raw)) return { type, unit:'s', value: parseInt(raw) };
+  if (/^\d+:\d{2}$/.test(raw)) {
+    const [m, s] = raw.split(':').map(Number);
+    return { type, unit:'s', value: m*60 + s };
+  }
+  if (/^\d+$/.test(raw)) {
+    // ambiguous — assume meters for work, seconds for rest
+    return { type, unit: type==='work' ? 'm' : 's', value: parseInt(raw) };
+  }
+  return null;
+}
+
+document.getElementById('add-work').addEventListener('click', addWorkStep);
+document.getElementById('add-rest').addEventListener('click', addRestStep);
+document.getElementById('add-warmup').addEventListener('click', addWarmupStep);
+document.getElementById('add-2k').addEventListener('click', () => {
+  state.workout.push({ type:'work', unit:'m', value:2000 }); saveLS(); renderWorkout();
+});
+document.getElementById('clear-wo').addEventListener('click', () => {
+  if (confirm('Alle stappen wissen?')) { state.workout = []; saveLS(); renderWorkout(); }
+});
+document.getElementById('save-preset').addEventListener('click', () => {
+  if (!state.workout.length) return toast('Leeg. Niks om op te slaan.', 'warn');
+  const name = document.getElementById('wo-name').value || `Preset ${state.userPresets.length+1}`;
+  state.userPresets.push({ name, steps: JSON.parse(JSON.stringify(state.workout)), desc: `${state.workout.length} stappen` });
+  saveLS(); renderPresets();
+  toast('Preset opgeslagen.', 'good');
+});
+document.getElementById('start-wo').addEventListener('click', () => {
+  if (!state.workout.length) return toast('Geen training. Voeg stappen toe.', 'warn');
+  startWorkoutRuntime(state.workout);
+  document.querySelector('.tab-btn[data-view="live"]').click();
+});
+document.getElementById('send-pm5').addEventListener('click', () => {
+  if (state.mode !== 'ble') return toast('PM5 niet verbonden. Koppel eerst via Bluetooth.', 'warn');
+  programPM5(state.workout);
+});
+
+/* =============================================================
+   WORKOUT RUNTIME (works for both BLE and SIM modes)
+   ============================================================= */
+function startWorkoutRuntime(steps) {
+  state.active = {
+    steps: JSON.parse(JSON.stringify(steps)),
+    idx: 0,
+    startedAt: Date.now(),
+    stepStart: Date.now(),
+    stepBase: { dist: state.live.distance, time: state.live.time },
+    halfwayAnnounced: false,
+    sprintAnnounced: false,
+    session: {
+      started: new Date().toISOString(),
+      samples: [], splits: [],
+      steps: JSON.parse(JSON.stringify(steps)), // bewaar voor visualisatie
+    },
+  };
+  state.session = state.active.session;
+  coach('start', true);
+  toast('Training gestart.', 'good');
+  if (state.mode === 'sim') startSim();
+  // 1Hz sample collector — captures whatever source fills state.live (BLE or sim)
+  if (state.sampleTimer) clearInterval(state.sampleTimer);
+  let lastT = -1;
+  state.sampleTimer = setInterval(() => {
+    if (!state.active) return;
+    const t = Math.round(state.live.time);
+    if (t === lastT) return;
+    lastT = t;
+    state.active.session.samples.push({
+      t, d: Math.round(state.live.distance),
+      p: Math.round((state.live.pace||0) * 10) / 10,
+      s: Math.round(state.live.spm||0),
+      w: Math.round(state.live.power || state.live.avgPower || 0),
+    });
+  }, 1000);
+}
+
+function renderActiveWorkout() {
+  const stepsWrap = document.getElementById('iv-steps');
+  const fill = document.getElementById('iv-fill');
+  const txt = document.getElementById('iv-txt');
+  const nextRow = document.getElementById('iv-nextrow');
+  const timeline = document.getElementById('iv-timeline');
+
+  if (!state.active) {
+    stepsWrap.innerHTML = '';
+    fill.style.width = '0%';
+    txt.textContent = 'Geen training actief';
+    if (nextRow) nextRow.style.display = 'none';
+    if (timeline) { const c = timeline.getContext('2d'); c.clearRect(0,0,timeline.width,timeline.height); timeline.style.display='none'; }
+    return;
+  }
+  const A = state.active;
+  const cur = A.steps[A.idx];
+  if (!cur) return;
+
+  // progress
+  const label = cur.type === 'rest' ? 'RUST' : cur.type === 'warmup' ? 'WARM-UP' : 'WERK';
+  let pct = 0;
+  if (cur.unit === 'm') {
+    const done = Math.max(0, state.live.distance - A.stepBase.dist);
+    pct = Math.min(100, (done / cur.value) * 100);
+    txt.textContent = `${label} · ${Math.round(done)}/${cur.value} m`;
+  } else {
+    const done = Math.max(0, (Date.now() - A.stepStart) / 1000);
+    pct = Math.min(100, (done / cur.value) * 100);
+    txt.textContent = `${label} · ${fmtTime(done)} / ${fmtTime(cur.value)}`;
+  }
+  fill.style.width = pct + '%';
+
+  // halfway / sprint messages
+  if (!A.halfwayAnnounced && pct > 48 && pct < 58 && cur.type === 'work') {
+    coach('halfway', true); A.halfwayAnnounced = true;
+  }
+  if (!A.sprintAnnounced && pct > 82 && cur.type === 'work' && cur.unit === 'm' && cur.value >= 500) {
+    coach('lastPush', true); A.sprintAnnounced = true;
+  }
+
+  // step chips
+  stepsWrap.innerHTML = '';
+  A.steps.forEach((s, i) => {
+    const c = document.createElement('div');
+    const cls = s.type === 'rest' ? 'rest ' : s.type === 'warmup' ? 'warmup ' : '';
+    c.className = 'step-chip ' + cls + (i < A.idx ? 'done ' : '') + (i === A.idx ? 'current ' : '');
+    const prefix = s.type === 'rest' ? 'R ' : s.type === 'warmup' ? 'W↑ ' : '';
+    c.textContent = prefix + (s.unit === 'm' ? s.value + 'm' : fmtTime(s.value));
+    stepsWrap.appendChild(c);
+  });
+
+  // Next-up label + step counter
+  if (nextRow) {
+    nextRow.style.display = 'flex';
+    const nextEl = document.getElementById('iv-next');
+    const cntEl = document.getElementById('iv-counter');
+    const next = A.steps[A.idx + 1];
+    nextEl.classList.remove('last', 'work');
+    if (!next) {
+      nextEl.classList.add('last');
+      nextEl.innerHTML = '<span class="arrow">→</span> Laatste stap, daarna klaar';
+    } else {
+      const lbl = next.type === 'rest' ? 'rust' : next.type === 'warmup' ? 'warm-up' : 'werk';
+      const val = next.unit === 'm' ? next.value + ' m' : fmtTime(next.value);
+      if (next.type === 'work') nextEl.classList.add('work');
+      nextEl.innerHTML = `<span class="arrow">VOLGENDE →</span> ${lbl} · ${val}`;
+    }
+    cntEl.innerHTML = `Stap <strong>${A.idx + 1}</strong> / ${A.steps.length}`;
+  }
+
+  // Schematische timeline van hele training
+  if (timeline) {
+    timeline.style.display = 'block';
+    renderTrainingTimeline(timeline);
+  }
+
+  // advance?
+  if (pct >= 100) advanceWorkout();
+}
+
+/* Schematische timeline: alle stappen op proportionele breedte, met cursor op huidige positie */
+function renderTrainingTimeline(canvas) {
+  const A = state.active; if (!A) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 400;
+  const cssH = canvas.clientHeight || 38;
+  if (canvas.width !== cssW * dpr || canvas.height !== cssH * dpr) {
+    canvas.width = cssW * dpr;
+    canvas.height = cssH * dpr;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  // Bereken proporties (geschatte duur per stap)
+  let totalUnits = 0;
+  A.steps.forEach(s => totalUnits += stepDurationEstimate(s));
+  if (totalUnits <= 0) return;
+
+  const padX = 4;
+  const padY = 4;
+  const usableW = cssW - padX * 2;
+  const baseY = cssH - padY;
+
+  let x = padX;
+  let cursorX = padX;
+  A.steps.forEach((s, i) => {
+    const units = stepDurationEstimate(s);
+    const w = (units / totalUnits) * usableW;
+    let color, hRatio;
+    if (s.type === 'rest') { color = '#ffb347'; hRatio = 0.35; }
+    else if (s.type === 'warmup') { color = '#00e1ff'; hRatio = 0.55; }
+    else {
+      color = '#00ffa3';
+      // kortere werkstappen visueel hoger (intensiteit)
+      if (s.unit === 'm') hRatio = s.value <= 500 ? 1 : s.value <= 1000 ? 0.92 : s.value <= 2000 ? 0.85 : 0.75;
+      else hRatio = s.value <= 120 ? 1 : s.value <= 300 ? 0.88 : 0.78;
+    }
+    const h = (cssH - padY * 2) * hRatio;
+    const y = baseY - h;
+
+    // alfa: gedaan = vaag, huidig = vol, toekomst = medium
+    if (i < A.idx) ctx.globalAlpha = 0.32;
+    else if (i === A.idx) ctx.globalAlpha = 1;
+    else ctx.globalAlpha = 0.7;
+
+    ctx.fillStyle = color;
+    const blockW = Math.max(1.5, w - 1.5);
+    roundedRect(ctx, x, y, blockW, h, Math.min(3, blockW/2, h/2));
+    ctx.fill();
+
+    // huidige stap: extra glow + binnen-progress
+    if (i === A.idx) {
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = color;
+      ctx.fillStyle = color;
+      roundedRect(ctx, x, y, blockW, h, Math.min(3, blockW/2, h/2));
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // bereken progress binnen huidige stap
+      let pct = 0;
+      if (s.unit === 'm') {
+        pct = Math.min(1, Math.max(0, (state.live.distance - A.stepBase.dist) / s.value));
+      } else {
+        pct = Math.min(1, Math.max(0, (Date.now() - A.stepStart) / 1000 / s.value));
+      }
+      cursorX = x + blockW * pct;
+    }
+
+    x += w;
+  });
+
+  ctx.globalAlpha = 1;
+
+  // Cursor lijn + bolletje
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cursorX - 1, padY - 2, 2, cssH - padY * 2 + 4);
+  ctx.beginPath();
+  ctx.arc(cursorX, padY - 1, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cursorX, padY - 1, 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#001421';
+  ctx.fill();
+}
+
+function advanceWorkout() {
+  const A = state.active; if (!A) return;
+  const prev = A.steps[A.idx];
+  A.session.splits.push({
+    step: A.idx, type: prev.type, unit: prev.unit, value: prev.value,
+    timeEnd: state.live.time, distEnd: state.live.distance,
+  });
+  A.idx += 1;
+  A.stepStart = Date.now();
+  A.stepBase = { dist: state.live.distance, time: state.live.time };
+  A.halfwayAnnounced = false;
+  A.sprintAnnounced = false;
+
+  if (A.idx >= A.steps.length) {
+    finishWorkout();
+    return;
+  }
+  const next = A.steps[A.idx];
+  const bucket = next.type === 'rest' ? 'rest' : next.type === 'warmup' ? 'warmup' : 'intervalNext';
+  coach(bucket, true);
+  const label = next.type === 'rest' ? 'rust' : next.type === 'warmup' ? 'warm-up' : 'werk';
+  toast(`Volgende: ${label} ${next.unit === 'm' ? next.value + 'm' : fmtTime(next.value)}`, '');
+}
+
+function finishWorkout() {
+  if (!state.active) return;
+  coach('done', true);
+  toast('Training afgerond. Goed bezig.', 'good');
+  const S = state.active.session;
+  S.finished = new Date().toISOString();
+  S.totalTime = state.live.time;
+  S.totalDist = state.live.distance;
+  S.avgPace = state.live.avgPace;
+  S.avgSpm = state.live.avgSpm;
+  S.avgPower = state.live.avgPower;
+  S.calories = state.live.calories;
+  S.name = document.getElementById('wo-name').value || 'Erg sessie';
+  state.history.unshift(S);
+  saveLS();
+  state.active = null;
+  stopSim();
+  if (state.sampleTimer) { clearInterval(state.sampleTimer); state.sampleTimer = null; }
+}
+
+/* =============================================================
+   SIMULATION MODE
+   ============================================================= */
+function startSim() {
+  if (state.simTimer) return;
+  state.mode = 'sim';
+  state.connected = true;
+  setConnBadge('sim', 'Demo modus (simulatie)');
+  state.live = { time:0, distance:0, spm:22, pace:140, power:180, calories:0, avgPace:140, avgSpm:22, avgPower:180, drag:130, hr:120 };
+
+  let t0 = Date.now();
+  let acc = 0;
+  let lastStroke = 0;
+  state.simTimer = setInterval(() => {
+    const dt = 0.25;
+    state.live.time += dt;
+    // vary slightly
+    const cur = state.active?.steps?.[state.active.idx];
+    let targetPace = 135, targetSpm = 24, targetPwr = 190;
+    if (cur?.type === 'rest') { targetPace = 190; targetSpm = 18; targetPwr = 70; }
+    else if (cur?.type === 'warmup') { targetPace = 160; targetSpm = 20; targetPwr = 110; }
+    else if (cur?.type === 'work' && cur.unit === 'm' && cur.value <= 500) { targetPace = 110; targetSpm = 30; targetPwr = 280; }
+    else if (cur?.type === 'work' && cur.unit === 'm' && cur.value >= 2000) { targetPace = 125; targetSpm = 26; targetPwr = 230; }
+
+    state.live.pace += (targetPace + (Math.random()-0.5)*4 - state.live.pace) * 0.1;
+    state.live.spm += (targetSpm + (Math.random()-0.5)*1.5 - state.live.spm) * 0.15;
+    state.live.power += (targetPwr + (Math.random()-0.5)*20 - state.live.power) * 0.15;
+
+    const speed = 500 / state.live.pace; // m/s
+    state.live.distance += speed * dt;
+    state.live.calories += (state.live.power * dt) / 1000;
+
+    // averages
+    state.live.avgPace = state.live.time > 5 ? (state.live.time / Math.max(1, state.live.distance) * 500) : state.live.pace;
+    state.live.avgSpm = (state.live.avgSpm * 0.98) + (state.live.spm * 0.02);
+    state.live.avgPower = (state.live.avgPower * 0.98) + (state.live.power * 0.02);
+
+    // strokes based on SPM
+    const strokeInterval = 60 / Math.max(10, state.live.spm);
+    acc += dt;
+    if (acc >= strokeInterval) {
+      acc = 0;
+      registerStroke(state.live.power);
+    }
+
+    // session sample ~1Hz
+    if (state.active && state.live.time - lastStroke >= 1) {
+      lastStroke = state.live.time;
+      state.active.session.samples.push({
+        t: Math.round(state.live.time),
+        d: Math.round(state.live.distance),
+        p: Math.round(state.live.pace * 10) / 10,
+        s: Math.round(state.live.spm),
+        w: Math.round(state.live.power),
+      });
+    }
+
+    // occasional coach
+    if (Math.random() < 0.005) {
+      if (state.live.spm < 18) coach('slacking');
+      else if (state.live.pace < 115) coach('pr');
+      else coach('pushing');
+    }
+
+    renderLive();
+  }, 250);
+}
+function stopSim() {
+  if (state.simTimer) clearInterval(state.simTimer);
+  state.simTimer = null;
+}
+
+/* =============================================================
+   BLE — CONCEPT2 PM5
+   ============================================================= */
+async function connectBLE() {
+  if (!navigator.bluetooth) {
+    toast('Web Bluetooth niet beschikbaar. Gebruik Chrome/Edge op desktop of Android. Start Demo om toch te kijken.', 'bad');
+    return;
+  }
+  try {
+    toast('Scannen naar PM5… (werkt ook als de erg alleen in menu staat)', '');
+    // PM5 adverteert de base service UUID (CE060000) altijd, ook in idle/menu.
+    // De rowing-service (CE060030) staat pas actief te "broadcasten" bij activiteit,
+    // dus we filteren primair op de base service + namePrefix (zoals ErgData doet).
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { services: [C2.SERVICE_DISCOVERY] }, // CE060000 — altijd geadverteerd
+        { namePrefix: 'PM5' },                // "PM5 431xxxxxx"
+        { namePrefix: 'PM' },                 // ook voor PM3/PM4 varianten
+      ],
+      optionalServices: [
+        C2.SERVICE_ROWING,
+        C2.SERVICE_DISCOVERY,
+        C2.SERVICE_INFORMATION,
+        C2.SERVICE_CONTROL,
+      ],
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+    const server = await device.gatt.connect();
+    state.device = device; state.server = server;
+
+    const rowingSvc = await server.getPrimaryService(C2.SERVICE_ROWING);
+
+    // General status (0x0031): distance, time, workout state
+    const general = await rowingSvc.getCharacteristic(C2.CHAR_GENERAL_STATUS);
+    general.addEventListener('characteristicvaluechanged', onGeneralStatus);
+    await general.startNotifications();
+
+    // Additional status 1 (0x0032): pace, spm, hr
+    const add1 = await rowingSvc.getCharacteristic(C2.CHAR_ADD_STATUS_1);
+    add1.addEventListener('characteristicvaluechanged', onAddStatus1);
+    await add1.startNotifications();
+
+    // Additional status 2 (0x0033): avg power, calories, drag
+    const add2 = await rowingSvc.getCharacteristic(C2.CHAR_ADD_STATUS_2);
+    add2.addEventListener('characteristicvaluechanged', onAddStatus2);
+    await add2.startNotifications();
+
+    // Stroke data (0x0035): stroke count, peak/avg force, work per stroke
+    const stroke = await rowingSvc.getCharacteristic(C2.CHAR_STROKE_DATA);
+    stroke.addEventListener('characteristicvaluechanged', onStrokeData);
+    await stroke.startNotifications();
+
+    state.connected = true;
+    state.mode = 'ble';
+    setConnBadge('on', `Verbonden met ${device.name || 'PM5'}`);
+    toast(`Verbonden met ${device.name || 'PM5'}. Data begint zodra je gaat roeien.`, 'good');
+    coach('start', true);
+  } catch (err) {
+    console.error(err);
+    toast('Koppelen mislukt: ' + (err.message || err), 'bad');
+  }
+}
+function onDisconnect() {
+  state.connected = false; state.mode = null;
+  setConnBadge('off', 'Verbinding verbroken');
+  toast('PM5 verbinding verbroken.', 'warn');
+}
+
+/* Parse per spec v2.3 — values are little-endian */
+function u24(v, o) { return v.getUint8(o) | (v.getUint8(o+1) << 8) | (v.getUint8(o+2) << 16); }
+function onGeneralStatus(e) {
+  const v = e.target.value;
+  // 0: elapsed time lo (0.01s units, 3 bytes), 3: distance (0.1m, 3 bytes), 6: workout type, 7: interval type, 8: workout state, 9: rowing state, 10: stroke state, 11: total work dist, 14: total work duration, 17: drag factor
+  state.live.time = u24(v, 0) * 0.01;
+  state.live.distance = u24(v, 3) * 0.1;
+  state.live.drag = v.getUint8(17);
+  renderLive();
+}
+function onAddStatus1(e) {
+  const v = e.target.value;
+  // 0: elapsed time (0.01s, 3), 3: speed (0.001 m/s, 2), 5: stroke rate (1 spm, 1), 6: heart rate (1, 1), 7: current pace (0.01s per 500m, 2), 9: avg pace (0.01s per 500m, 2)
+  const speed = v.getUint16(3, true) * 0.001; // m/s
+  const spm = v.getUint8(5);
+  const hr = v.getUint8(6);
+  const curPace = v.getUint16(7, true) * 0.01;
+  const avgPace = v.getUint16(9, true) * 0.01;
+  state.live.spm = spm;
+  state.live.hr = hr;
+  state.live.pace = curPace;
+  state.live.avgPace = avgPace;
+  renderLive();
+}
+function onAddStatus2(e) {
+  const v = e.target.value;
+  // 0: elapsed time (0.01s, 3), 3: interval count, 4: avg power (W, 2), 6: total calories (cal, 2), 8: split avg pace, 10: split avg power, 12: split avg cal, 14: last split time, 17: last split distance
+  state.live.avgPower = v.getUint16(4, true);
+  state.live.calories = v.getUint16(6, true);
+  renderLive();
+}
+function onStrokeData(e) {
+  const v = e.target.value;
+  // 0: elapsed time (0.01s, 3), 3: distance (0.1m, 3), 6: drive length (0.01m, 1), 7: drive time (0.01s, 1), 8: stroke recovery time (0.01s, 2), 10: stroke distance (0.01m, 2), 12: peak drive force (0.1 lbs, 2), 14: avg drive force (0.1 lbs, 2), 16: work per stroke (0.1 J, 2), 18: stroke count (2)
+  const peakForce = v.getUint16(12, true) * 0.1;
+  const workJ = v.getUint16(16, true) * 0.1;
+  registerStroke(workJ / 0.4 || peakForce * 2 || 150);
+  renderLive();
+}
+
+async function programPM5(workout) {
+  if (!state.server) return toast('Geen PM5 verbinding.', 'warn');
+  try {
+    const ctrl = await state.server.getPrimaryService(C2.SERVICE_CONTROL);
+    const tx = await ctrl.getCharacteristic(C2.CHAR_CSAFE_TX);
+
+    // CSAFE frame helper. Keep it simple: reset + single fixed workout.
+    // Build a single-step CSAFE command (real multi-interval programming is complex; we program the first work step).
+    const first = workout.find(s => s.type === 'work');
+    if (!first) return toast('Geen werkinterval om te sturen.', 'warn');
+
+    let cmd;
+    if (first.unit === 'm') {
+      // CSAFE: CSAFE_SETWORKOUT_CMD + CSAFE_PM_SET_WORKOUTDISTANCE
+      const dist = first.value;
+      cmd = new Uint8Array([
+        0xF0, // start
+        0x1A, 0x03, (dist & 0xff), (dist >> 8) & 0xff, 0x24, // SET distance (units = meters)
+        0xF2, // end
+      ]);
+    } else {
+      const t = first.value; // seconds
+      const hh = Math.floor(t / 3600), mm = Math.floor((t % 3600) / 60), ss = t % 60;
+      cmd = new Uint8Array([ 0xF0, 0x11, 0x03, hh, mm, ss, 0xF2 ]);
+    }
+    await tx.writeValue(cmd);
+    toast(`Eerste interval (${first.unit==='m'? first.value+'m' : fmtTime(first.value)}) verstuurd. Rest start handmatig.`, 'good');
+  } catch (err) {
+    console.error(err);
+    toast('PM5 programmering mislukt: ' + err.message, 'bad');
+  }
+}
+
+/* -------- Connection UI -------- */
+function setConnBadge(kind, text) {
+  const dot = document.getElementById('conn-dot');
+  dot.classList.remove('on','sim');
+  if (kind === 'on') dot.classList.add('on');
+  if (kind === 'sim') dot.classList.add('sim');
+  document.getElementById('conn-txt').textContent = text;
+}
+
+document.getElementById('connect-btn').addEventListener('click', connectBLE);
+document.getElementById('sim-btn').addEventListener('click', () => {
+  if (state.mode === 'sim') { stopSim(); setConnBadge('off', 'Niet verbonden'); state.mode = null; state.connected = false; toast('Demo gestopt.', ''); return; }
+  // start sim with a default quick workout if none active
+  if (!state.active) startWorkoutRuntime(state.workout.length ? state.workout : [
+    { type:'work', unit:'s', value: 300 },
+  ]);
+  startSim();
+});
+document.getElementById('fs-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+});
+
+/* ---------- Roei-modus: auto voor landscape telefoon (iPhone 12 ≈ 844×390) ---------- */
+const LS_ROWMODE = 'erg_rowmode_pref_v1';
+const MQ_ROW = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+let rowModePref = null; // null = auto, true = geforceerd aan, false = geforceerd uit
+try { const saved = localStorage.getItem(LS_ROWMODE); if (saved !== null) rowModePref = saved === 'true'; } catch(e) {}
+
+function applyRowMode() {
+  const auto = MQ_ROW.matches;
+  const active = rowModePref !== null ? rowModePref : auto;
+  document.body.classList.toggle('row-mode', active);
+  document.getElementById('rowmode-btn').classList.toggle('active', active);
+  if (active) {
+    // In roei-modus: forceer live tab
+    const liveBtn = document.querySelector('.tab-btn[data-view="live"]');
+    if (liveBtn && !liveBtn.classList.contains('active')) liveBtn.click();
+  }
+  // Herteken grafiek en interval canvas na layoutswitch
+  setTimeout(() => { drawHistoryChart(); renderWorkout(); }, 50);
+}
+MQ_ROW.addEventListener('change', applyRowMode);
+window.addEventListener('orientationchange', () => setTimeout(applyRowMode, 80));
+window.addEventListener('resize', () => { if (!rowModePref) applyRowMode(); });
+
+document.getElementById('rowmode-btn').addEventListener('click', () => {
+  const currentlyOn = document.body.classList.contains('row-mode');
+  rowModePref = !currentlyOn;
+  // Als gebruiker handmatig uitschakelt terwijl auto detecteert "aan",
+  // dan onthouden we 'uit'. Bij volgende keer in portrait: reset pref zodat auto werkt.
+  try { localStorage.setItem(LS_ROWMODE, String(rowModePref)); } catch(e) {}
+  applyRowMode();
+  toast(rowModePref ? 'Roei-modus aan. Draai naar landscape.' : 'Normaal scherm.', '');
+});
+
+/* =============================================================
+   HISTORY + EXPORT
+   ============================================================= */
+function renderHistory() {
+  const wrap = document.getElementById('history-list');
+  wrap.innerHTML = '';
+  if (!state.history.length) {
+    wrap.innerHTML = '<div class="empty">Nog geen sessies. Na je eerste training staan ze hier.</div>';
+    drawHistoryChart();
+    return;
+  }
+  state.history.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    const date = new Date(s.started);
+    el.innerHTML = `
+      <div class="date">${date.toLocaleDateString('nl-NL', {day:'2-digit',month:'short'})}<br><small style="color:var(--muted)">${date.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})}</small></div>
+      <div class="title">${s.name || 'Erg sessie'}<small>${Math.round(s.totalDist||0)}m · ${fmtTime(s.totalTime||0)} · Ø ${fmtPace(s.avgPace||0)}/500m</small></div>
+      <div class="metrics">${Math.round(s.avgPower||0)} W<br><small style="color:var(--muted)">${Math.round(s.calories||0)} kcal</small></div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end">
+        <button class="btn primary" data-share="${i}">Delen / upload</button>
+        <button class="btn danger" data-del-hist="${i}" title="Verwijder">✕</button>
+      </div>
+    `;
+    wrap.appendChild(el);
+  });
+  wrap.querySelectorAll('[data-share]').forEach(b => b.addEventListener('click', e => openShareModal(state.history[+e.target.dataset.share])));
+  wrap.querySelectorAll('[data-del-hist]').forEach(b => b.addEventListener('click', e => {
+    if (confirm('Verwijder deze sessie?')) { state.history.splice(+e.target.dataset.delHist, 1); saveLS(); renderHistory(); }
+  }));
+  drawHistoryChart();
+}
+
+function downloadBlob(name, content, type='text/plain') {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function downloadJSON(s) { downloadBlob(`erg-${s.started.slice(0,10)}.json`, JSON.stringify(s, null, 2), 'application/json'); }
+
+/* Minimal TCX exporter — accepted by Strava and Suunto app as Other/Rowing activity */
+function makeTCX(s) {
+  const started = new Date(s.started).toISOString();
+  const name = (s.name || 'Erg sessie').replace(/[<>&]/g,'');
+  let trackpoints = '';
+  (s.samples || []).forEach(pt => {
+    const t = new Date(new Date(s.started).getTime() + pt.t*1000).toISOString();
+    const speed = 500 / Math.max(1, pt.p); // m/s from pace
+    trackpoints += `
+      <Trackpoint>
+        <Time>${t}</Time>
+        <DistanceMeters>${pt.d}</DistanceMeters>
+        <Cadence>${Math.min(254, Math.max(0, pt.s|0))}</Cadence>
+        <Extensions>
+          <TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
+            <Speed>${speed.toFixed(3)}</Speed>
+            <Watts>${pt.w|0}</Watts>
+          </TPX>
+        </Extensions>
+      </Trackpoint>`;
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ax="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
+  <Activities>
+    <Activity Sport="Other">
+      <Id>${started}</Id>
+      <Lap StartTime="${started}">
+        <TotalTimeSeconds>${(s.totalTime||0).toFixed(1)}</TotalTimeSeconds>
+        <DistanceMeters>${(s.totalDist||0).toFixed(1)}</DistanceMeters>
+        <Calories>${Math.round(s.calories||0)}</Calories>
+        <Intensity>Active</Intensity>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track>${trackpoints}
+        </Track>
+        <Notes>${name}</Notes>
+      </Lap>
+      <Creator xsi:type="Device_t">
+        <Name>Concept2 PM5 (Erg Dashboard)</Name>
+        <UnitId>0</UnitId><ProductID>0</ProductID>
+        <Version><VersionMajor>1</VersionMajor><VersionMinor>0</VersionMinor><BuildMajor>0</BuildMajor><BuildMinor>0</BuildMinor></Version>
+      </Creator>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>`;
+}
+
+function downloadTCX(s) {
+  downloadBlob(`erg-${s.started.slice(0,10)}.tcx`, makeTCX(s), 'application/vnd.garmin.tcx+xml');
+  toast('TCX gedownload.', 'good');
+}
+
+/* FIT export: complex binary format — we fall back to TCX with renamed extension for compatibility. */
+function downloadFIT(s) {
+  toast('FIT genereren vereist binaire encoder — TCX werkt overal. Download gestart als .tcx.', 'warn');
+  downloadTCX(s);
+}
+
+/* ---------- Interval afbeelding ---------- */
+/* Tekent de geplande intervallen als gelabeld staafdiagram op een canvas.
+   Gebruikt in de share modal en als losse PNG download. */
+function renderIntervalImage(session, canvas, opts = {}) {
+  const scale = opts.scale || 2; // retina
+  const W = canvas.width = (opts.width || 820) * scale;
+  const H = canvas.height = (opts.height || 320) * scale;
+  canvas.style.width = (opts.width || 820) + 'px';
+  canvas.style.height = (opts.height || 320) + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  const Wx = W/scale, Hx = H/scale;
+
+  // Achtergrond
+  const grad = ctx.createLinearGradient(0, 0, 0, Hx);
+  grad.addColorStop(0, '#132338');
+  grad.addColorStop(1, '#07111c');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, Wx, Hx);
+
+  // Rand gloed rechtsboven
+  const r2 = ctx.createRadialGradient(Wx*0.9, 0, 0, Wx*0.9, 0, 400);
+  r2.addColorStop(0, 'rgba(0,225,255,0.18)');
+  r2.addColorStop(1, 'rgba(0,225,255,0)');
+  ctx.fillStyle = r2; ctx.fillRect(0, 0, Wx, Hx);
+
+  // Titel
+  ctx.fillStyle = '#e6f1ff';
+  ctx.font = 'bold 22px -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(session.name || 'Erg sessie', 28, 42);
+
+  // Subtitle met stats
+  ctx.fillStyle = '#8fa7c4';
+  ctx.font = '13px -apple-system, "Segoe UI", Roboto, sans-serif';
+  const dateStr = new Date(session.started).toLocaleString('nl-NL', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const stats = [
+    dateStr,
+    fmtDist(session.totalDist || sumPlanned(session).distance),
+    fmtTime(session.totalTime || sumPlanned(session).time),
+    `Ø ${fmtPace(session.avgPace||0)}/500m`,
+    session.avgPower ? `${Math.round(session.avgPower)} W` : null,
+  ].filter(Boolean).join('   ·   ');
+  ctx.fillText(stats, 28, 64);
+
+  // Watermark rechts
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#00e1ff';
+  ctx.font = 'bold 11px ui-monospace, monospace';
+  ctx.fillText('ERG DASHBOARD · CONCEPT2 PM5', Wx - 28, 42);
+  ctx.textAlign = 'left';
+
+  // Intervallen balk
+  const steps = (session.steps && session.steps.length) ? session.steps : [];
+  if (!steps.length) {
+    ctx.fillStyle = '#8fa7c4';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Geen intervalstructuur — vrije sessie.', Wx/2, Hx/2);
+    return canvas;
+  }
+
+  const marginX = 28;
+  const chartTop = 100;
+  const chartBottom = Hx - 52;
+  const chartW = Wx - marginX*2;
+  const chartH = chartBottom - chartTop;
+
+  // Totale geschatte duur (om proportie te bepalen)
+  let totalUnits = 0;
+  steps.forEach(s => totalUnits += stepDurationEstimate(s));
+  if (totalUnits <= 0) totalUnits = 1;
+
+  // Baseline
+  ctx.strokeStyle = '#223b5c';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath();
+  ctx.moveTo(marginX, chartBottom);
+  ctx.lineTo(Wx - marginX, chartBottom);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Blokken
+  let x = marginX;
+  steps.forEach((s) => {
+    const units = stepDurationEstimate(s);
+    const w = Math.max(10, (units / totalUnits) * chartW) - 3;
+    let hRatio = 1, color;
+    if (s.type === 'rest') { hRatio = 0.28; color = '#ffb347'; }
+    else if (s.type === 'warmup') { hRatio = 0.5; color = '#00e1ff'; }
+    else {
+      // work: hoogte schaalt met "intensiteit" (kortere werk = hoger)
+      if (s.unit === 'm') hRatio = s.value <= 500 ? 1 : s.value <= 1000 ? 0.92 : s.value <= 2000 ? 0.82 : 0.72;
+      else hRatio = s.value <= 120 ? 1 : s.value <= 300 ? 0.88 : 0.78;
+      color = '#00ffa3';
+    }
+    const h = chartH * hRatio;
+    const y = chartBottom - h;
+
+    // schaduw
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x+1, y+2, w, h);
+
+    // vulling
+    const g = ctx.createLinearGradient(0, y, 0, chartBottom);
+    g.addColorStop(0, color);
+    g.addColorStop(1, color + 'aa');
+    ctx.fillStyle = g;
+    roundedRect(ctx, x, y, w, h, 6);
+    ctx.fill();
+
+    // label
+    if (w > 34) {
+      const lbl = s.unit === 'm' ? s.value + 'm' : fmtTime(s.value);
+      ctx.fillStyle = '#001421';
+      ctx.font = 'bold 11px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl, x + w/2, y + Math.min(18, h/2 + 4));
+    }
+
+    x += w + 3;
+  });
+
+  // Legenda
+  const legY = Hx - 22;
+  ctx.textAlign = 'left';
+  ctx.font = '11px -apple-system, sans-serif';
+  let lx = marginX;
+  [
+    ['Warm-up', '#00e1ff'],
+    ['Werk', '#00ffa3'],
+    ['Rust', '#ffb347'],
+  ].forEach(([lbl, color]) => {
+    ctx.fillStyle = color;
+    roundedRect(ctx, lx, legY - 10, 14, 12, 3); ctx.fill();
+    ctx.fillStyle = '#8fa7c4';
+    ctx.fillText(lbl, lx + 20, legY - 1);
+    lx += 80;
+  });
+
+  // Rechts: aantal stappen
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#8fa7c4';
+  ctx.fillText(`${steps.length} stappen`, Wx - marginX, legY - 1);
+
+  return canvas;
+}
+
+function roundedRect(ctx, x, y, w, h, r) {
+  if (w <= 0 || h <= 0) return;
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath();
+}
+
+function stepDurationEstimate(s) {
+  // Heel ruw: 2:00/500m standaard tempo
+  if (s.unit === 'm') return s.value * 0.24;
+  return s.value;
+}
+function sumPlanned(session) {
+  let d = 0, t = 0;
+  (session.steps||[]).forEach(s => {
+    if (s.unit === 'm') d += s.value;
+    else t += s.value;
+  });
+  return { distance: d, time: t };
+}
+
+async function makePNGBlob(session) {
+  const c = document.createElement('canvas');
+  renderIntervalImage(session, c);
+  return await new Promise(res => c.toBlob(res, 'image/png'));
+}
+function downloadPNG(session) {
+  const c = document.createElement('canvas');
+  renderIntervalImage(session, c);
+  c.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `erg-${session.started.slice(0,10)}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, 'image/png');
+}
+
+/* ---------- Share (Strava / Suunto) ---------- */
+/* Strategie: Web Share API gebruiken indien beschikbaar (iOS/Android openen direct de
+   Strava/Suunto app). Fallback: bestanden downloaden + upload-pagina openen. */
+async function shareSession(session, target) {
+  const dateSlug = session.started.slice(0,10);
+  const tcxContent = makeTCX(session);
+  const pngBlob = await makePNGBlob(session);
+  const tcxBlob = new Blob([tcxContent], { type: 'application/vnd.garmin.tcx+xml' });
+
+  const tcxFile = new File([tcxBlob], `erg-${dateSlug}.tcx`, { type: tcxBlob.type });
+  const pngFile = new File([pngBlob], `erg-${dateSlug}.png`, { type: 'image/png' });
+
+  const shareText = `${session.name || 'Erg sessie'} — ${fmtDist(session.totalDist||0)} in ${fmtTime(session.totalTime||0)} · Ø ${fmtPace(session.avgPace||0)}/500m`;
+
+  // Web Share API (mobiel) — opent direct de native share sheet met Strava/Suunto als optie
+  if (navigator.canShare && navigator.canShare({ files: [tcxFile, pngFile] })) {
+    try {
+      await navigator.share({
+        files: [tcxFile, pngFile],
+        title: session.name || 'Erg sessie',
+        text: shareText,
+      });
+      toast('Gedeeld.', 'good');
+      return;
+    } catch (e) {
+      if (e.name !== 'AbortError') console.warn(e);
+    }
+  }
+
+  // Desktop fallback: download beide + open upload pagina
+  downloadBlob(tcxFile.name, tcxContent, tcxFile.type);
+  setTimeout(() => {
+    const url = URL.createObjectURL(pngBlob);
+    const a = document.createElement('a'); a.href = url; a.download = pngFile.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, 400);
+
+  if (target === 'strava') {
+    setTimeout(() => window.open('https://www.strava.com/upload/select', '_blank', 'noopener'), 900);
+    toast('Bestanden gedownload. Upload TCX naar Strava, voeg de PNG toe als foto.', 'good');
+  } else if (target === 'suunto') {
+    setTimeout(() => window.open('https://www.suunto.com/nl-nl/support/Product-support/suunto_app/suunto_app_importing_and_exporting_activities/', '_blank', 'noopener'), 900);
+    toast('Bestanden gedownload. Open TCX in de Suunto app (Profile → + → Import).', 'good');
+  }
+}
+
+/* ---------- Share modal ---------- */
+let sharingSession = null;
+function openShareModal(session) {
+  sharingSession = session;
+  document.getElementById('sm-name').textContent = session.name || 'Erg sessie';
+  const stats = `${fmtDist(session.totalDist||0)} · ${fmtTime(session.totalTime||0)} · Ø ${fmtPace(session.avgPace||0)}/500m`;
+  document.getElementById('sm-desc').textContent = `${new Date(session.started).toLocaleString('nl-NL')} · ${stats}`;
+  renderIntervalImage(session, document.getElementById('sm-canvas'));
+  document.getElementById('share-modal').classList.add('open');
+}
+function closeShareModal() {
+  document.getElementById('share-modal').classList.remove('open');
+  sharingSession = null;
+}
+
+/* -------- simple history chart (pure canvas, no deps) -------- */
+function drawHistoryChart() {
+  const c = document.getElementById('hist-chart');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const w = c.width = c.clientWidth * devicePixelRatio;
+  const h = c.height = 180 * devicePixelRatio;
+  ctx.clearRect(0, 0, w, h);
+  if (state.history.length < 2) {
+    ctx.fillStyle = '#8fa7c4';
+    ctx.font = `${14*devicePixelRatio}px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Nog niet genoeg data. Ga trainen.', w/2, h/2);
+    return;
+  }
+  const data = [...state.history].reverse();
+  const paces = data.map(d => d.avgPace || 0).filter(x => x > 0);
+  const min = Math.min(...paces) * 0.95, max = Math.max(...paces) * 1.05;
+  const pad = 30 * devicePixelRatio;
+
+  // axis
+  ctx.strokeStyle = '#223b5c';
+  ctx.lineWidth = 1 * devicePixelRatio;
+  ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, h-pad); ctx.lineTo(w-pad, h-pad); ctx.stroke();
+
+  // line
+  ctx.strokeStyle = '#00e1ff'; ctx.lineWidth = 2*devicePixelRatio;
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    const x = pad + (i/(data.length-1)) * (w - pad*2);
+    const y = h - pad - ((d.avgPace - min)/(max - min)) * (h - pad*2);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // dots
+  ctx.fillStyle = '#00ffa3';
+  data.forEach((d, i) => {
+    const x = pad + (i/(data.length-1)) * (w - pad*2);
+    const y = h - pad - ((d.avgPace - min)/(max - min)) * (h - pad*2);
+    ctx.beginPath(); ctx.arc(x, y, 4*devicePixelRatio, 0, Math.PI*2); ctx.fill();
+  });
+
+  // labels
+  ctx.fillStyle = '#8fa7c4';
+  ctx.font = `${11*devicePixelRatio}px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('Ø Tempo /500m · hoger = langzamer', pad, pad - 10*devicePixelRatio);
+  ctx.fillText(fmtPace(max), 4*devicePixelRatio, pad + 4*devicePixelRatio);
+  ctx.fillText(fmtPace(min), 4*devicePixelRatio, h - pad + 4*devicePixelRatio);
+}
+window.addEventListener('resize', drawHistoryChart);
+
+/* =============================================================
+   INIT
+   ============================================================= */
+(function init() {
+  loadLS();
+  renderPresets();
+  renderWorkout();
+  renderLive();
+
+  // seed some demo coach
+  coach('idle', true);
+
+  // keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === '1') document.querySelector('.tab-btn[data-view="live"]').click();
+    if (e.key === '2') document.querySelector('.tab-btn[data-view="intervallen"]').click();
+    if (e.key === '3') document.querySelector('.tab-btn[data-view="historie"]').click();
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (state.mode === 'sim') document.getElementById('sim-btn').click();
+      else if (!state.connected) document.getElementById('connect-btn').click();
+    }
+    if (e.key === 'f' || e.key === 'F') document.getElementById('fs-btn').click();
+    if (e.key === 'Escape' && state.active) {
+      if (confirm('Training afbreken?')) finishWorkout();
+    }
+  });
+
+  // render ticks for progress bar
+  const ticks = document.getElementById('iv-ticks');
+  for (let i = 0; i < 10; i++) { const t = document.createElement('div'); t.className = 'tick'; ticks.appendChild(t); }
+
+  // render bars wrapper
+  renderBars();
+
+  // set initial connection badge
+  setConnBadge('off', 'Niet verbonden');
+
+  // Check of we op een landscape telefoon zijn (iPhone 12 e.d.) en activeer roei-modus
+  applyRowMode();
+})();
+</script>
+</body>
+</html>
