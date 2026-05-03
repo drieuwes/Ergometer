@@ -209,6 +209,52 @@
   }
   .step-counter strong { color: var(--text); font-weight: 700; }
 
+  /* Interval headline: type, countdown, target pace */
+  .iv-headline {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 4px 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+  .ih-main { text-align: left; }
+  .ih-type {
+    font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase;
+    color: var(--accent-2); font-weight: 700;
+  }
+  .ih-type.rest { color: var(--warn); }
+  .ih-type.warmup { color: var(--accent); }
+  .ih-countdown {
+    font-family: var(--mono); font-weight: 800;
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 0.95; letter-spacing: -2px;
+    margin-top: 2px;
+    background: linear-gradient(180deg, var(--text) 30%, var(--accent) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .ih-cd-label {
+    font-size: 11px; letter-spacing: 1.5px; color: var(--muted);
+    text-transform: uppercase; margin-top: 4px;
+  }
+  .ih-target {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 14px;
+  }
+  .ih-target-label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+  .ih-target-value { font-family: var(--mono); font-size: 26px; font-weight: 700; margin-top: 2px; letter-spacing: -0.5px; }
+  .ih-target-coach {
+    margin-top: 6px;
+    font-size: 13px; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ih-target-coach.harder { color: var(--warn); background: rgba(255,179,71,0.12); border: 1px solid rgba(255,179,71,0.4); }
+  .ih-target-coach.softer { color: var(--accent); background: rgba(0,225,255,0.12); border: 1px solid rgba(0,225,255,0.4); }
+  .ih-target-coach.on { color: var(--good); background: rgba(124,255,203,0.12); border: 1px solid rgba(124,255,203,0.4); }
+  .ih-target-coach.idle { color: var(--muted); background: var(--bg-3); border: 1px solid var(--line); font-weight: 500; }
+
   /* Timeline canvas */
   .iv-timeline {
     display: block; width: 100%; height: 38px;
@@ -270,9 +316,28 @@
 
   .workout-list { display: flex; flex-direction: column; gap: 8px; }
   .workout-step {
-    display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 10px; align-items: center;
+    display: grid; grid-template-columns: auto 1fr auto auto auto auto; gap: 10px; align-items: center;
     padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
   }
+  .step-target {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--bg-3); border: 1px solid var(--line);
+    color: var(--muted);
+    cursor: pointer; transition: all 160ms;
+    white-space: nowrap;
+  }
+  .step-target:hover { transform: translateY(-1px); }
+  .step-target.explicit {
+    color: var(--accent-2);
+    border-color: rgba(0,255,163,0.5);
+    background: rgba(0,255,163,0.08);
+    box-shadow: 0 0 8px rgba(0,255,163,0.15);
+  }
+  .step-target.default { color: var(--muted); }
+  .step-target.default:hover { color: var(--accent-2); border-color: rgba(0,255,163,0.3); }
+  .step-target.empty { color: var(--muted); border-style: dashed; }
+  .step-target.spacer { visibility: hidden; }
   .workout-step.rest { border-style: dashed; opacity: 0.9; }
   .workout-step .idx { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-3); font-size: 12px; font-family: var(--mono); color: var(--muted); }
   .workout-step.rest .idx { background: transparent; border: 1px dashed var(--muted); color: var(--warn); }
@@ -427,9 +492,11 @@
   body.row-mode #view-historie { display: none !important; }
   body.row-mode #view-live { display: block !important; height: 100%; }
 
+  /* Row-mode v2: intervallen zijn de hoofdfocus, pace/spm zijn kleine secundaire stats.
+     Layout: 1.7fr links (interval card big) + 1fr rechts (compact stats). */
   body.row-mode .live-grid {
-    grid-template-columns: 1fr 1fr 1.35fr !important;
-    grid-template-rows: 1fr auto !important;
+    grid-template-columns: 1.7fr 1fr !important;
+    grid-template-rows: 1fr !important;
     gap: 6px !important;
     height: 100%;
   }
@@ -440,73 +507,74 @@
     overflow: hidden;
     box-shadow: none;
   }
-  body.row-mode .card h3 { font-size: 9px; letter-spacing: 1.2px; margin: 0 0 4px 0; }
+  body.row-mode .card h3 { display: none; }
 
-  /* Pace — left column, full height */
-  body.row-mode .live-grid > .card:nth-child(1) {
-    grid-column: 1;
-    grid-row: 1 / 3;
-    display: flex; flex-direction: column; justify-content: center;
+  /* Hide cards we re-render compact in the right column */
+  body.row-mode .live-grid > .card:nth-child(1),  /* pace big-stat */
+  body.row-mode .live-grid > .card:nth-child(2),  /* spm big-stat */
+  body.row-mode .live-grid > .card:nth-child(4),  /* coach card */
+  body.row-mode .live-grid > .card:nth-child(5),  /* stroke viz */
+  body.row-mode .live-grid > .card:nth-child(7) { /* split avg */
+    display: none;
   }
-  /* SPM — middle column, full height */
-  body.row-mode .live-grid > .card:nth-child(2) {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    display: flex; flex-direction: column; justify-content: center;
-  }
-  body.row-mode .big-stat { min-height: 0; padding: 10px 14px; }
-  body.row-mode .big-stat .label { font-size: 9px; letter-spacing: 1.4px; margin-bottom: 2px; }
-  body.row-mode .big-stat .value {
-    font-size: clamp(64px, 18vh, 120px);
-    line-height: 0.88; margin-top: 0;
-    letter-spacing: -3px;
-  }
-  body.row-mode .big-stat .unit { display: none; }
 
-  /* Interval card — right column top */
+  /* Interval card — left column, full height — DE HOOFDDISPLAY */
   body.row-mode .live-grid > .card:nth-child(3) {
-    grid-column: 3; grid-row: 1;
-    padding: 8px 12px;
+    grid-column: 1; grid-row: 1;
+    padding: 10px 14px;
+    display: flex; flex-direction: column;
   }
-  body.row-mode .progress { height: 22px; border-radius: 11px; }
+
+  /* Headline (type + big countdown + target) — neemt het meeste verticaal */
+  body.row-mode .iv-headline {
+    grid-template-columns: 1.4fr 1fr;
+    padding: 4px 0 10px;
+    margin-bottom: 8px;
+    gap: 10px;
+  }
+  body.row-mode .ih-type { font-size: 11px; letter-spacing: 1.4px; }
+  body.row-mode .ih-countdown {
+    font-size: clamp(72px, 22vh, 130px);
+    line-height: 0.85; letter-spacing: -3px; margin-top: 2px;
+  }
+  body.row-mode .ih-cd-label { font-size: 9px; margin-top: 2px; }
+  body.row-mode .ih-target { padding: 8px 10px; }
+  body.row-mode .ih-target-label { font-size: 9px; }
+  body.row-mode .ih-target-value { font-size: 22px; }
+  body.row-mode .ih-target-coach { font-size: 12px; padding: 3px 8px; margin-top: 5px; }
+
+  /* Progress bar — compact onder de countdown */
+  body.row-mode .progress { height: 20px; border-radius: 10px; }
   body.row-mode .progress .txt { font-size: 11px; }
-  body.row-mode .interval-steps { display: none; } /* gebruik timeline ipv chips */
-  body.row-mode .next-up-row { margin-top: 6px; }
-  body.row-mode .next-up { font-size: 13px; padding: 5px 11px; }
+
+  /* Next-up + step counter — direct onder progress */
+  body.row-mode .next-up-row { margin-top: 6px; gap: 8px; }
+  body.row-mode .next-up { font-size: 12px; padding: 4px 10px; }
   body.row-mode .step-counter { font-size: 11px; }
-  body.row-mode .iv-timeline { height: 30px; margin-top: 6px; }
 
-  /* Coach — right column middle, compact */
-  body.row-mode .live-grid > .card:nth-child(4) {
-    grid-column: 3; grid-row: 2;
-    padding: 6px 10px;
-  }
-  body.row-mode .live-grid > .card:nth-child(4) h3 { display: none; }
-  body.row-mode .coach { padding: 6px 10px; min-height: 0; gap: 10px; border: 0; background: transparent; }
-  body.row-mode .coach .avatar { width: 32px; height: 32px; font-size: 16px; }
-  body.row-mode .coach .msg { font-size: 13px; line-height: 1.25; }
-  body.row-mode .coach .sub { display: none; }
+  /* Step chips — verbergen, timeline doet het werk */
+  body.row-mode .interval-steps { display: none; }
 
-  /* Stroke viz — hidden */
-  body.row-mode .live-grid > .card:nth-child(5) { display: none; }
+  /* Timeline — onderaan interval card */
+  body.row-mode .iv-timeline { height: 28px; margin-top: 6px; }
 
-  /* Live metrics — bottom strip under the two big stats */
+  /* Live metrics — rechter kolom, compact gestapeld:
+     pace/spm bovenaan klein, daaronder time/dist/watt/cal */
   body.row-mode .live-grid > .card:nth-child(6) {
-    grid-column: 1 / 3;
-    grid-row: 2;
-    padding: 4px 8px;
+    grid-column: 2; grid-row: 1;
+    padding: 8px 10px;
+    display: flex; flex-direction: column; justify-content: space-evenly;
   }
-  body.row-mode .live-grid > .card:nth-child(6) h3 { display: none; }
   body.row-mode .live-grid > .card:nth-child(6) .stat-row {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
   body.row-mode .stat { padding: 4px 6px; border-radius: 8px; }
-  body.row-mode .stat .n { font-size: 16px; }
+  body.row-mode .stat .n { font-size: 18px; }
   body.row-mode .stat .l { font-size: 8px; letter-spacing: 1px; margin-top: 1px; }
-
-  /* Split avg — hidden in row mode */
-  body.row-mode .live-grid > .card:nth-child(7) { display: none; }
+  .row-pace-spm { display: none; } /* alleen in row-mode actief */
+  body.row-mode .row-pace-spm { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  body.row-mode .row-pace-spm .stat .n { font-size: 24px; font-weight: 800; color: var(--accent-2); }
 
   /* Toast in row-mode: smaller */
   body.row-mode .toast-wrap { top: 46px; right: 8px; }
@@ -568,6 +636,18 @@
 
       <div class="card interval-card">
         <h3>Interval voortgang</h3>
+        <div class="iv-headline" id="iv-headline" style="display:none">
+          <div class="ih-main">
+            <div class="ih-type" id="ih-type">WERK · 500m</div>
+            <div class="ih-countdown" id="ih-countdown">—:—</div>
+            <div class="ih-cd-label">resterend</div>
+          </div>
+          <div class="ih-target" id="ih-target" style="display:none">
+            <div class="ih-target-label">DOELTEMPO</div>
+            <div class="ih-target-value" id="ih-target-value">—:—</div>
+            <div class="ih-target-coach" id="ih-target-coach">→ wacht op data</div>
+          </div>
+        </div>
         <div class="progress">
           <div class="fill" id="iv-fill"></div>
           <div class="ticks" id="iv-ticks"></div>
@@ -602,6 +682,10 @@
 
       <div class="card">
         <h3>Live metrics</h3>
+        <div class="row-pace-spm">
+          <div class="stat"><div class="n" id="m-pace">—:—</div><div class="l">Tempo /500m</div></div>
+          <div class="stat"><div class="n" id="m-spm">—</div><div class="l">Halen/min</div></div>
+        </div>
         <div class="stat-row">
           <div class="stat"><div class="n" id="m-time">0:00</div><div class="l">Tijd</div></div>
           <div class="stat"><div class="n" id="m-dist">0 m</div><div class="l">Afstand</div></div>
@@ -631,9 +715,12 @@
         <h3>Intervaltraining bouwen</h3>
         <p class="subtitle">Stel je eigen workout samen. Druk op <b>Stuur naar PM5</b> om de training op je roeimachine te programmeren.</p>
 
-        <div style="margin-top:12px">
+        <div class="form-row" style="margin-top:12px">
           <label class="field">Naam training
             <input id="wo-name" placeholder="Bijv. Koude dinsdagochtend" />
+          </label>
+          <label class="field">Doeltempo per 500m (optioneel)
+            <input id="wo-target" placeholder="bv. 2:00" />
           </label>
         </div>
 
@@ -791,7 +878,26 @@ const state = {
   sampleTimer: null,
   history: [],         // saved sessions
   userPresets: [],
+  targetPace: 0,       // doeltempo in seconden per 500m, 0 = geen
 };
+
+/* Compact target-pace formatter (zonder decimaal). */
+function fmtTarget(sec) { return fmtPace(sec).replace(/\.0$/, ''); }
+
+/* Parse "2:00" of "120" naar seconden. Geeft 0 terug bij ongeldig. */
+function parseTargetPace(raw) {
+  if (!raw) return 0;
+  raw = String(raw).trim();
+  if (/^\d+:\d{2}(\.\d+)?$/.test(raw)) {
+    const [m, s] = raw.split(':');
+    return parseInt(m, 10) * 60 + parseFloat(s);
+  }
+  if (/^\d+$/.test(raw)) {
+    const n = parseInt(raw, 10);
+    return n < 30 ? n * 60 : n; // <30 → assumed minutes (1, 2, 3 ...) → seconden
+  }
+  return 0;
+}
 
 /* -------- Local storage -------- */
 const LS_HISTORY = 'erg_history_v1';
@@ -925,6 +1031,9 @@ function renderLive() {
   const L = state.live;
   document.getElementById('live-pace').textContent = fmtPace(L.pace);
   document.getElementById('live-spm').textContent = L.spm > 0 ? Math.round(L.spm) : '—';
+  // ook compacte pace/spm voor row-mode
+  const mp = document.getElementById('m-pace'); if (mp) mp.textContent = fmtPace(L.pace);
+  const ms = document.getElementById('m-spm'); if (ms) ms.textContent = L.spm > 0 ? Math.round(L.spm) : '—';
   document.getElementById('m-time').textContent = fmtTime(L.time);
   document.getElementById('m-dist').textContent = fmtDist(L.distance);
   document.getElementById('m-power').textContent = Math.round(L.power) + ' W';
@@ -973,6 +1082,7 @@ function registerStroke(power) {
    ============================================================= */
 const DEFAULT_PRESETS = [
   { name: '4x 500m (R:1:30)', desc: 'Klassieker. Trekken tot je ogen suizen.', tag: 'hard',
+    targetPace: 110, // 1:50/500m
     steps: [
       { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
       { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
@@ -980,6 +1090,7 @@ const DEFAULT_PRESETS = [
       { type:'work', unit:'m', value:500 },
     ]},
   { name: '5x 1000m (R:3:00)', desc: 'Uithoudings­basis. Tempo gelijk houden.', tag: 'hard',
+    targetPace: 120, // 2:00/500m
     steps: [
       { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:180 },
       { type:'work', unit:'m', value:1000 }, { type:'rest', unit:'s', value:180 },
@@ -988,6 +1099,7 @@ const DEFAULT_PRESETS = [
       { type:'work', unit:'m', value:1000 },
     ]},
   { name: 'Pyramide 250→1000→250', desc: 'Oplopend, piek op 1000m.', tag: 'hard',
+    targetPace: 115, // 1:55/500m
     steps: [
       { type:'work', unit:'m', value:250 }, { type:'rest', unit:'s', value:60 },
       { type:'work', unit:'m', value:500 }, { type:'rest', unit:'s', value:90 },
@@ -998,25 +1110,31 @@ const DEFAULT_PRESETS = [
       { type:'work', unit:'m', value:250 },
     ]},
   { name: '8x 500m (R:2:00)', desc: 'Snelheid en mentale stoerheid.', tag: 'brutal',
+    targetPace: 108, // 1:48/500m
     steps: Array.from({length: 15}, (_, i) => i % 2 === 0
       ? { type:'work', unit:'m', value:500 }
       : { type:'rest', unit:'s', value:120 })
   },
   { name: 'Tabata 20/10 x 16', desc: 'Korte pijn, veel van.', tag: 'brutal',
+    targetPace: 105, // 1:45/500m
     steps: Array.from({length: 31}, (_, i) => i % 2 === 0
       ? { type:'work', unit:'s', value:20 }
       : { type:'rest', unit:'s', value:10 })
   },
   { name: '30 min steady state', desc: 'Rustig tempo, gesprek mogelijk (nauwelijks).', tag: 'easy',
+    targetPace: 135, // 2:15/500m
     steps: [{ type:'work', unit:'s', value:1800 }]
   },
   { name: '2000m test', desc: 'Een examen op wielen. Je krijgt geen cijfer, wel een tijd.', tag: 'brutal',
+    targetPace: 110, // 1:50/500m
     steps: [{ type:'work', unit:'m', value:2000 }]
   },
   { name: '5000m tempo', desc: 'Klassiek afstand voor benchmark.', tag: 'hard',
+    targetPace: 120, // 2:00/500m
     steps: [{ type:'work', unit:'m', value:5000 }]
   },
   { name: 'Herstel 20 min', desc: 'Lichte trekjes, gewoon beweging.', tag: 'easy',
+    targetPace: 150, // 2:30/500m
     steps: [{ type:'work', unit:'s', value:1200 }]
   },
 ];
@@ -1065,7 +1183,9 @@ let pendingWarmup = 300; // default 5 min
 function openPresetModal(preset) {
   pendingPreset = preset;
   document.getElementById('pm-name').textContent = preset.name;
-  document.getElementById('pm-desc').textContent = preset.desc || `${preset.steps.length} stappen`;
+  const baseDesc = preset.desc || `${preset.steps.length} stappen`;
+  const targetDesc = preset.targetPace ? ` · doeltempo ${fmtTarget(preset.targetPace)}/500m` : '';
+  document.getElementById('pm-desc').textContent = baseDesc + targetDesc;
 
   // preview of steps
   const preview = preset.steps.map((s, i) => {
@@ -1129,8 +1249,13 @@ document.getElementById('pm-load').addEventListener('click', () => {
   steps.push(...JSON.parse(JSON.stringify(pendingPreset.steps)));
   state.workout = steps;
   document.getElementById('wo-name').value = pendingPreset.name;
+  // Doeltempo overnemen uit preset (indien aanwezig)
+  const presetTarget = pendingPreset.targetPace || 0;
+  state.targetPace = presetTarget;
+  const targetInput = document.getElementById('wo-target');
+  if (targetInput) targetInput.value = presetTarget ? fmtTarget(presetTarget) : '';
   saveLS(); renderWorkout();
-  toast(`Preset geladen: ${pendingPreset.name}${pendingWarmup ? ` · warm-up ${fmtTime(pendingWarmup)}` : ''}`, 'good');
+  toast(`Preset geladen: ${pendingPreset.name}${pendingWarmup ? ` · warm-up ${fmtTime(pendingWarmup)}` : ''}${presetTarget ? ' · doel ' + fmtTarget(presetTarget) : ''}`, 'good');
   closePresetModal();
 });
 
@@ -1146,10 +1271,29 @@ function renderWorkout() {
     el.className = 'workout-step ' + typeCls;
     const desc = s.type === 'rest' ? 'Rust' : s.type === 'warmup' ? 'Warming-up' : 'Werk';
     const val = s.unit === 'm' ? `${s.value} m` : fmtTime(s.value);
+
+    // Per-stap doeltempo pil — alleen voor werk-stappen
+    let targetHtml = '<span class="step-target spacer">→ —:—</span>';
+    if (s.type === 'work') {
+      const explicit = s.targetPace > 0;
+      const fallback = state.targetPace || 0;
+      const eff = s.targetPace || fallback;
+      if (eff > 0) {
+        const cls = explicit ? 'explicit' : 'default';
+        const tip = explicit
+          ? 'Eigen doeltempo voor deze stap. Klik om te wijzigen.'
+          : `Standaard doeltempo (${fmtTarget(fallback)}). Klik om eigen waarde in te stellen.`;
+        targetHtml = `<span class="step-target ${cls}" data-edit-target="${i}" title="${tip}">→ ${fmtTarget(eff)}</span>`;
+      } else {
+        targetHtml = `<span class="step-target empty" data-edit-target="${i}" title="Stel doeltempo in">+ doel</span>`;
+      }
+    }
+
     el.innerHTML = `
       <div class="idx">${i+1}</div>
       <div class="desc">${desc}<small>${s.unit === 'm' ? 'afstand' : 'tijd'}</small></div>
       <div class="t">${val}</div>
+      ${targetHtml}
       <button class="icon-btn" data-up="${i}" title="Omhoog">▲</button>
       <button class="icon-btn" data-del="${i}" title="Verwijder">✕</button>
     `;
@@ -1166,6 +1310,9 @@ function renderWorkout() {
     const i = +e.target.dataset.del;
     state.workout.splice(i, 1);
     saveLS(); renderWorkout();
+  }));
+  wrap.querySelectorAll('[data-edit-target]').forEach(b => b.addEventListener('click', e => {
+    editStepTarget(+e.target.dataset.editTarget);
   }));
 
   // summary
@@ -1204,6 +1351,27 @@ function renderWorkout() {
   } else if (previewCanvas) {
     previewCanvas.style.display = 'none';
   }
+}
+
+/* Per-stap doeltempo aanpassen. Lege invoer = terug naar globaal doel. */
+function editStepTarget(i) {
+  const step = state.workout[i];
+  if (!step || step.type !== 'work') return;
+  const fallback = state.targetPace || 0;
+  const cur = step.targetPace ? fmtTarget(step.targetPace) : (fallback ? fmtTarget(fallback) : '');
+  const fbInfo = fallback ? ` (laat leeg = standaard ${fmtTarget(fallback)})` : ' (laat leeg = geen doel)';
+  const v = prompt(`Doeltempo voor stap ${i+1} per 500m${fbInfo}:`, cur);
+  if (v === null) return; // cancel
+  if (!v.trim()) {
+    delete step.targetPace;
+    toast(fallback ? `Stap ${i+1} valt nu terug op standaard ${fmtTarget(fallback)}.` : `Stap ${i+1} heeft geen doeltempo meer.`, '');
+  } else {
+    const parsed = parseTargetPace(v);
+    if (!parsed) return toast('Ongeldig formaat. Gebruik mm:ss zoals 1:50.', 'warn');
+    step.targetPace = parsed;
+    toast(`Stap ${i+1} doeltempo: ${fmtTarget(parsed)}/500m.`, 'good');
+  }
+  saveLS(); renderWorkout();
 }
 
 function addWarmupStep() {
@@ -1262,9 +1430,23 @@ document.getElementById('clear-wo').addEventListener('click', () => {
 document.getElementById('save-preset').addEventListener('click', () => {
   if (!state.workout.length) return toast('Leeg. Niks om op te slaan.', 'warn');
   const name = document.getElementById('wo-name').value || `Preset ${state.userPresets.length+1}`;
-  state.userPresets.push({ name, steps: JSON.parse(JSON.stringify(state.workout)), desc: `${state.workout.length} stappen` });
+  const target = parseTargetPace(document.getElementById('wo-target').value);
+  state.userPresets.push({
+    name,
+    steps: JSON.parse(JSON.stringify(state.workout)),
+    targetPace: target,
+    desc: `${state.workout.length} stappen${target ? ' · doel ' + fmtTarget(target) : ''}`,
+  });
   saveLS(); renderPresets();
   toast('Preset opgeslagen.', 'good');
+});
+
+// Doeltempo invoer: bij wijziging direct toepassen op state én step pills herrenderen
+document.getElementById('wo-target').addEventListener('change', (e) => {
+  state.targetPace = parseTargetPace(e.target.value);
+  if (state.active) state.active.targetPace = state.targetPace;
+  renderWorkout();         // werk pills updaten (default-waarde)
+  renderActiveWorkout();   // headline updaten
 });
 document.getElementById('start-wo').addEventListener('click', () => {
   if (!state.workout.length) return toast('Geen training. Voeg stappen toe.', 'warn');
@@ -1280,8 +1462,14 @@ document.getElementById('send-pm5').addEventListener('click', () => {
    WORKOUT RUNTIME (works for both BLE and SIM modes)
    ============================================================= */
 function startWorkoutRuntime(steps) {
+  // Lees doeltempo uit invoer (kan ook eerder zijn ingesteld via preset)
+  const targetInput = document.getElementById('wo-target');
+  const target = targetInput ? parseTargetPace(targetInput.value) : state.targetPace;
+  state.targetPace = target;
+
   state.active = {
     steps: JSON.parse(JSON.stringify(steps)),
+    targetPace: target,
     idx: 0,
     startedAt: Date.now(),
     stepStart: Date.now(),
@@ -1291,6 +1479,7 @@ function startWorkoutRuntime(steps) {
     session: {
       started: new Date().toISOString(),
       samples: [], splits: [],
+      targetPace: target,
       steps: JSON.parse(JSON.stringify(steps)), // bewaar voor visualisatie
     },
   };
@@ -1322,30 +1511,58 @@ function renderActiveWorkout() {
   const nextRow = document.getElementById('iv-nextrow');
   const timeline = document.getElementById('iv-timeline');
 
+  const headline = document.getElementById('iv-headline');
+
   if (!state.active) {
     stepsWrap.innerHTML = '';
     fill.style.width = '0%';
     txt.textContent = 'Geen training actief';
     if (nextRow) nextRow.style.display = 'none';
+    if (headline) headline.style.display = 'none';
     if (timeline) { const c = timeline.getContext('2d'); c.clearRect(0,0,timeline.width,timeline.height); timeline.style.display='none'; }
     return;
   }
+  if (headline) headline.style.display = 'grid';
   const A = state.active;
   const cur = A.steps[A.idx];
   if (!cur) return;
 
-  // progress
+  // progress + countdown
   const label = cur.type === 'rest' ? 'RUST' : cur.type === 'warmup' ? 'WARM-UP' : 'WERK';
+  const stepKindCls = cur.type === 'rest' ? 'rest' : cur.type === 'warmup' ? 'warmup' : '';
   let pct = 0;
+  let countdownText = '—:—';
+  let cdLabel = 'resterend';
   if (cur.unit === 'm') {
     const done = Math.max(0, state.live.distance - A.stepBase.dist);
+    const remaining = Math.max(0, cur.value - done);
     pct = Math.min(100, (done / cur.value) * 100);
     txt.textContent = `${label} · ${Math.round(done)}/${cur.value} m`;
+    countdownText = Math.round(remaining) + ' m';
+    cdLabel = 'resterend';
   } else {
     const done = Math.max(0, (Date.now() - A.stepStart) / 1000);
+    const remaining = Math.max(0, cur.value - done);
     pct = Math.min(100, (done / cur.value) * 100);
     txt.textContent = `${label} · ${fmtTime(done)} / ${fmtTime(cur.value)}`;
+    countdownText = fmtTime(Math.ceil(remaining));
+    cdLabel = 'resterend';
   }
+
+  // headline: type + countdown
+  const typeEl = document.getElementById('ih-type');
+  const cdEl = document.getElementById('ih-countdown');
+  const cdLblEl = document.querySelector('.ih-cd-label');
+  if (typeEl) {
+    typeEl.classList.remove('rest', 'warmup');
+    if (stepKindCls) typeEl.classList.add(stepKindCls);
+    typeEl.textContent = `${label} · ${cur.unit === 'm' ? cur.value + ' m' : fmtTime(cur.value)}`;
+  }
+  if (cdEl) cdEl.textContent = countdownText;
+  if (cdLblEl) cdLblEl.textContent = cdLabel;
+
+  // doeltempo + harder/zachter coach
+  renderTargetCoach(cur);
   fill.style.width = pct + '%';
 
   // halfway / sprint messages
@@ -1394,6 +1611,59 @@ function renderActiveWorkout() {
 
   // advance?
   if (pct >= 100) advanceWorkout();
+}
+
+/* Doeltempo coach: harder of zachter halen om doel te halen?
+   - Als pace in seconden/500m hoger is dan doel → te langzaam → HARDER
+   - Lager dan doel → te snel → ZACHTER
+   - Binnen 1.5s → OP TEMPO ✓ */
+function renderTargetCoach(curStep) {
+  const targetEl = document.getElementById('ih-target');
+  if (!targetEl) return;
+
+  // Per-stap doel heeft voorrang; anders globaal workout doel
+  const stepTarget = curStep && curStep.targetPace;
+  const workoutTarget = state.active && state.active.targetPace;
+  const target = stepTarget || workoutTarget || 0;
+
+  if (!target) { targetEl.style.display = 'none'; return; }
+
+  targetEl.style.display = 'block';
+  // Label visueel aanpassen wanneer per-stap doel actief is
+  const labelEl = targetEl.querySelector('.ih-target-label');
+  if (labelEl) labelEl.textContent = stepTarget ? 'DOEL DEZE STAP' : 'DOELTEMPO';
+  document.getElementById('ih-target-value').textContent = fmtTarget(target);
+
+  const coach = document.getElementById('ih-target-coach');
+  coach.classList.remove('harder', 'softer', 'on', 'idle');
+
+  // Geen coaching tijdens rust/warm-up — alleen tijdens werkstap
+  if (!curStep || curStep.type !== 'work') {
+    coach.classList.add('idle');
+    coach.innerHTML = curStep && curStep.type === 'rest'
+      ? 'Rust · doel geldt straks'
+      : 'Warm-up · doel geldt straks';
+    return;
+  }
+
+  const cur = state.live.pace;
+  if (!cur || cur < 60 || cur > 600) {
+    coach.classList.add('idle');
+    coach.innerHTML = '→ wacht op data';
+    return;
+  }
+  const diff = cur - target; // positief = te langzaam
+  const tol = 1.5;
+  if (Math.abs(diff) <= tol) {
+    coach.classList.add('on');
+    coach.innerHTML = '✓ OP TEMPO';
+  } else if (diff > 0) {
+    coach.classList.add('harder');
+    coach.innerHTML = `↑ HARDER · ${diff.toFixed(1)}s te langzaam`;
+  } else {
+    coach.classList.add('softer');
+    coach.innerHTML = `↓ ZACHTER · ${(-diff).toFixed(1)}s te snel`;
+  }
 }
 
 /* Schematische timeline: alle stappen op proportionele breedte, met cursor op huidige positie */
