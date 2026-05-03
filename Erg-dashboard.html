@@ -583,6 +583,27 @@
   /* Row-mode button visual state */
   #rowmode-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #001421; border: 0; }
 
+  /* Wake Lock badge */
+  .wl-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--bg-3); border: 1px solid var(--line);
+    font-size: 14px; cursor: pointer;
+    transition: all 200ms;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .wl-badge.on {
+    background: rgba(124,255,203,0.18);
+    border-color: rgba(124,255,203,0.5);
+    box-shadow: 0 0 12px rgba(124,255,203,0.25);
+  }
+  .wl-badge.off { opacity: 0.55; }
+  .wl-badge.off:hover { opacity: 1; }
+  .wl-badge.disabled, .wl-badge.unsupported { opacity: 0.4; }
+  body.row-mode .wl-badge { width: 26px; height: 26px; font-size: 12px; }
+
   /* Portrait on phone with aspect ratio — keep normal but compact */
   @media (orientation: portrait) and (max-width: 500px) {
     .big-stat .value { font-size: clamp(64px, 18vw, 120px); }
@@ -611,6 +632,7 @@
     <span id="conn-txt" style="font-size:13px;color:var(--muted)">Niet verbonden</span>
     <button class="btn primary" id="connect-btn">Koppel PM5</button>
     <button class="btn" id="sim-btn" title="Demo met gesimuleerde data">Demo</button>
+    <span id="wakelock-badge" class="wl-badge" title="Scherm-aan houden">🔆</span>
     <button class="btn" id="rowmode-btn" title="Roei-modus: geoptimaliseerd voor telefoon in landscape">📱</button>
     <button class="btn" id="fs-btn" title="Volledig scherm">⛶</button>
   </div>
@@ -1486,6 +1508,7 @@ function startWorkoutRuntime(steps) {
   state.session = state.active.session;
   coach('start', true);
   toast('Training gestart.', 'good');
+  acquireWakeLock(); // scherm aan houden zolang training loopt
   if (state.mode === 'sim') startSim();
   // 1Hz sample collector — captures whatever source fills state.live (BLE or sim)
   if (state.sampleTimer) clearInterval(state.sampleTimer);
@@ -1796,6 +1819,7 @@ function finishWorkout() {
   state.active = null;
   stopSim();
   if (state.sampleTimer) { clearInterval(state.sampleTimer); state.sampleTimer = null; }
+  releaseWakeLock(); // training klaar — scherm mag weer slapen
 }
 
 /* =============================================================
@@ -2034,6 +2058,66 @@ document.getElementById('fs-btn').addEventListener('click', () => {
   else document.exitFullscreen?.();
 });
 
+/* =============================================================
+   WAKE LOCK — voorkomt dat het scherm uitvalt tijdens een training
+   ============================================================= */
+const wakeLockSupported = ('wakeLock' in navigator);
+let wakeLockObj = null;
+let wakeLockUserDisabled = false;
+const LS_WAKELOCK = 'erg_wakelock_disabled_v1';
+try { wakeLockUserDisabled = localStorage.getItem(LS_WAKELOCK) === 'true'; } catch(e) {}
+
+async function acquireWakeLock() {
+  if (wakeLockUserDisabled || !wakeLockSupported) { updateWakeLockBadge(); return; }
+  if (wakeLockObj) { updateWakeLockBadge(); return; }
+  try {
+    wakeLockObj = await navigator.wakeLock.request('screen');
+    wakeLockObj.addEventListener('release', () => { wakeLockObj = null; updateWakeLockBadge(); });
+    updateWakeLockBadge();
+  } catch (err) {
+    console.warn('Wake Lock geweigerd:', err);
+    updateWakeLockBadge();
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLockObj) {
+    try { await wakeLockObj.release(); } catch(e) {}
+    wakeLockObj = null;
+  }
+  updateWakeLockBadge();
+}
+
+function updateWakeLockBadge() {
+  const el = document.getElementById('wakelock-badge');
+  if (!el) return;
+  el.classList.remove('on', 'off', 'unsupported', 'disabled');
+  if (!wakeLockSupported) {
+    el.classList.add('unsupported');
+    el.textContent = '⚠';
+    el.title = 'Wake Lock niet ondersteund. Zet iOS Auto-Lock op Never voor je gaat roeien (Instellingen → Beeldscherm en helderheid → Automatisch slot).';
+  } else if (wakeLockUserDisabled) {
+    el.classList.add('disabled');
+    el.textContent = '💤';
+    el.title = 'Scherm-aan uitgeschakeld. Klik om weer in te schakelen.';
+  } else if (wakeLockObj) {
+    el.classList.add('on');
+    el.textContent = '🔆';
+    el.title = 'Scherm blijft aan tijdens training. Klik om uit te zetten.';
+  } else {
+    el.classList.add('off');
+    el.textContent = '🔆';
+    el.title = 'Scherm-aan staat klaar — activeert automatisch zodra je een training start. Klik om uit te zetten.';
+  }
+}
+
+// iOS verbreekt Wake Lock bij tab-wissel — opnieuw aanvragen wanneer scherm weer zichtbaar wordt
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.active && !wakeLockUserDisabled) {
+    acquireWakeLock();
+  }
+});
+
 /* ---------- Roei-modus: auto voor landscape telefoon (iPhone 12 ≈ 844×390) ---------- */
 const LS_ROWMODE = 'erg_rowmode_pref_v1';
 const MQ_ROW = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
@@ -2056,6 +2140,22 @@ function applyRowMode() {
 MQ_ROW.addEventListener('change', applyRowMode);
 window.addEventListener('orientationchange', () => setTimeout(applyRowMode, 80));
 window.addEventListener('resize', () => { if (!rowModePref) applyRowMode(); });
+
+document.getElementById('wakelock-badge').addEventListener('click', () => {
+  if (!wakeLockSupported) {
+    toast('Wake Lock niet ondersteund in deze browser. Tip: zet iOS Auto-Lock op Never (Instellingen → Beeldscherm en helderheid).', 'warn');
+    return;
+  }
+  wakeLockUserDisabled = !wakeLockUserDisabled;
+  try { localStorage.setItem(LS_WAKELOCK, String(wakeLockUserDisabled)); } catch(e) {}
+  if (wakeLockUserDisabled) {
+    releaseWakeLock();
+    toast('Scherm-aan uit. Scherm kan nu uitvallen tijdens training.', '');
+  } else {
+    if (state.active) acquireWakeLock();
+    toast('Scherm-aan aan. Activeert automatisch zodra je een training start.', 'good');
+  }
+});
 
 document.getElementById('rowmode-btn').addEventListener('click', () => {
   const currentlyOn = document.body.classList.contains('row-mode');
@@ -2515,6 +2615,9 @@ window.addEventListener('resize', drawHistoryChart);
 
   // Check of we op een landscape telefoon zijn (iPhone 12 e.d.) en activeer roei-modus
   applyRowMode();
+
+  // Wake Lock badge in juiste startstatus zetten
+  updateWakeLockBadge();
 })();
 </script>
 </body>
